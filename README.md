@@ -1,129 +1,102 @@
-# TalentWorld — Authentication slice
+# TalentWorld (TWORLD) v4.0
 
-This is the **authentication-only** build-out of TalentWorld: real accounts,
-hashed passwords, and signed sessions — replacing the old static demo page
-that faked login with `localStorage`.
+Production-ready PWA talent marketplace: dual Creator/Employer roles, Hats, Showroom, Cloudinary portfolio uploads, Neon Postgres, escrow (no platform fees), anti-leak masking, installable offline-capable app.
 
-Nothing past sign-in exists yet (no Hats, Showroom, or escrow). That's
-intentional — this was scoped to auth first.
+## Stack
 
-## What's here
+- **Frontend:** Vite + React 18 + Tailwind 3.4 + React Router + lucide-react  
+- **PWA:** vite-plugin-pwa (manifest, service worker, CacheFirst for Cloudinary)  
+- **Backend:** Vercel Serverless Functions `/api/*` + Neon Postgres (`pg`)  
+- **Media:** Cloudinary (unsigned client preset + server `CLOUDINARY_URL`)
 
-```
-src/
-  pages/AuthPage.jsx       Sign in / role select / account details / success
-  pages/Dashboard.jsx      Placeholder page once you're signed in
-  context/AuthContext.jsx  Holds the current user, talks to the API
-  lib/api.js               fetch wrapper (sends the session cookie)
-api/
-  auth/register.js         POST — create account, hash password, start session
-  auth/login.js            POST — verify password, start session
-  auth/logout.js           POST — clear session
-  auth/me.js               GET  — who am I (used on page load)
-  _lib/db.js               Postgres connection (Neon)
-  _lib/auth.js             bcrypt hashing, JWT sign/verify, cookie helpers
-db/
-  schema.sql               users table (adds password_hash — not in the original SRD)
-  migrate.js                run schema.sql against DATABASE_URL
-  patch-roles.sql           one-off patch if your DB still has the old creator/employer roles
-```
+## 1. Cloudinary setup
 
-Roles are `talent`, `client`, or `dual` (not creator/employer). If you ran the
-schema before this change, apply `db/patch-roles.sql` once against your
-database to rename existing rows and update the constraint.
+1. Cloud name: `j1nochxj` (already set in env example).  
+2. Dashboard → Settings → Upload → **Add upload preset**  
+   - Name: `talentworld_unsigned_preset`  
+   - Signing mode: **Unsigned**  
+   - Folder: `talentworld_hats`  
+   - Allowed formats: image, video, audio  
+   - Max file size: 20MB  
+   - Transformations: enable `f_auto,q_auto` if desired  
+3. Keep **API secret** server-only. Client uses the unsigned preset only.
 
-Signup now shows a **signup policy popup** (Agree / Disagree) after the
-account-details form validates and before the account is actually created.
-Disagreeing cancels the signup and returns to the form.
+## 2. Neon Postgres
 
-Sessions are a JWT in an `httpOnly` cookie (`tw_session`), so the frontend
-never touches the token directly — it just calls the API with
-`credentials: 'include'`.
+1. Use the **pooled** connection string (host contains `-pooler`).  
+2. Append `?sslmode=require&channel_binding=require` if not already present.  
+3. Run migrations:
 
-## 1. Set up Neon Postgres
-
-1. Create a project at [neon.tech](https://neon.tech) (or use your existing one).
-2. Copy the **pooled** connection string (Dashboard → Connection Details →
-   check "Pooled connection").
-3. Run the schema against it:
-   ```bash
-   DATABASE_URL="postgresql://..." npm run db:migrate
-   ```
-   This creates the `users` table (id, full_name, username, email,
-   password_hash, role, country, lga, created_at).
-
-## 2. Environment variables
-
-Copy `.env.example` to `.env` and fill in:
-
-```
-DATABASE_URL=<your Neon pooled connection string>
-JWT_SECRET=<a long random string>
+```bash
+export DATABASE_URL="postgresql://..."
+npm run db:migrate
 ```
 
-Generate a secret with:
+This creates `users`, `orbits`, `hats`, `hat_media`, `escrows`, `leak_attempts` and seeds default orbits.
+
+## 3. Environment variables
+
+Copy `.env.example` → `.env` (never commit `.env`):
+
+```
+VITE_CLOUDINARY_CLOUD_NAME=j1nochxj
+VITE_CLOUDINARY_UPLOAD_PRESET=talentworld_unsigned_preset
+VITE_CLOUDINARY_FOLDER=talentworld_hats
+VITE_APP_NAME=TalentWorld
+VITE_APP_URL=https://your-app.vercel.app
+
+DATABASE_URL=postgresql://...pooler.../neondb?sslmode=require&channel_binding=require
+CLOUDINARY_URL=cloudinary://KEY:SECRET@j1nochxj
+CLOUDINARY_CLOUD_NAME=j1nochxj
+CLOUDINARY_API_KEY=...
+CLOUDINARY_API_SECRET=...
+JWT_SECRET=<long random string>
+```
+
+Generate JWT secret:
+
 ```bash
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
-Add both of these in **Vercel → Project → Settings → Environment
-Variables** too before deploying.
+Add the **same keys** in **Vercel → Project → Settings → Environment Variables** (Production + Preview).
 
-## 3. Install and run locally
+## 4. Local development
 
 ```bash
 npm install
+npm run db:migrate
+npx vercel dev
 ```
 
-The frontend (`npm run dev`) is served by Vite, but `/api/*` routes are
-Vercel serverless functions — Vite's dev server doesn't run those. Use the
-Vercel CLI for a full local stack:
+## 5. Deploy
 
 ```bash
-npm install -g vercel   # one-time
-vercel dev
+npx vercel --prod
 ```
 
-`vercel dev` serves both the Vite frontend and the `/api` functions
-together, reading `.env` automatically.
+Build: `npm run build` → `dist`. SPA rewrites in `vercel.json`.
 
-## 4. Deploy
+## 6. Locked product rules
 
-```bash
-vercel --prod
-```
+1. Open custom orbits  
+2. Dual toggle Creator ↔ Employer (`talentworld_role`)  
+3. Portfolio required for Talent; optional for Client  
+4. Verified if name ends Ltd/Plc/Corp/Inc/LLC  
+5. Escrow = price_min  
+6. Showroom sort: bookings + orbit_score + likes; top = Host  
+7. Cards: minmax(260px,1fr), gap 18px, max 300px  
+8. No platform fees (v4.0)
 
-(or connect the repo in the Vercel dashboard — `vercel.json` already points
-`buildCommand` at `npm run build` and `outputDirectory` at `dist`, with a
-rewrite so client-side routing works.)
+## 7. API
 
-## How the pieces fit together
+- `GET/POST /api/hats` — list (filters) / create  
+- `GET/PUT/DELETE /api/hats/:id`  
+- `GET /api/showroom`  
+- `GET/POST /api/orbits`  
+- `POST /api/escrows` · `/api/escrows/:id/fund` · `/api/escrows/:id/release`  
+- Auth: `/api/auth/register|login|logout|me`
 
-- **Register** (`POST /api/auth/register`): validates input, hashes the
-  password with bcrypt, inserts the user, signs a JWT, sets it as an
-  `httpOnly` cookie, returns the public user fields.
-- **Login** (`POST /api/auth/login`): looks up by email, compares the
-  password with bcrypt, signs a session cookie the same way. Wrong email and
-  wrong password return the same generic error so you can't enumerate which
-  emails have accounts.
-- **Me** (`GET /api/auth/me`): reads the cookie, verifies the JWT, re-fetches
-  the user from the DB. `AuthContext` calls this once on load so a page
-  refresh doesn't lose your session.
-- **Logout** (`POST /api/auth/logout`): clears the cookie.
-- `ProtectedRoute` / `PublicOnlyRoute` in `App.jsx` redirect based on whether
-  `AuthContext` has a user, once the initial `/me` check finishes.
+## Flow
 
-## What's deliberately not done yet
-
-- No password reset / forgot-password flow (the UI has a stub button).
-- No "Continue with Google" (button exists, not wired up).
-- No email verification.
-- No rate limiting on login attempts.
-- Every other TalentWorld feature (Hats, Showroom, escrow, orbits, anti-leak
-  chat masking) — next slices, not part of this one.
-
-## Original full-product spec
-
-The complete multi-feature prompt (Hats, escrow, Cloudinary uploads, PWA,
-etc.) is preserved in `srd` for reference when you're ready to build the
-next slice.
+Register → Create Hat → Browse (toggle role) → Book/Apply → Escrow (price_min) → Fund → Contacts unlocked → Work (anti-leak) → Release 100% to talent.

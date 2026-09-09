@@ -1,32 +1,73 @@
-// Every request includes credentials so the httpOnly session cookie set by
-// /api/auth/login and /api/auth/register is sent back on subsequent calls.
+const base = ''
+
 async function request(path, options = {}) {
-  const res = await fetch(path, {
+  const res = await fetch(`${base}${path}`, {
     credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
     ...options,
   })
-
-  let body = null
-  try {
-    body = await res.json()
-  } catch {
-    // no JSON body (e.g. 204 on logout) — that's fine
-  }
-
+  const data = await res.json().catch(() => ({}))
   if (!res.ok) {
-    const message = body?.error || `Request failed (${res.status})`
-    throw new Error(message)
+    const err = new Error(data.error || res.statusText || 'Request failed')
+    err.status = res.status
+    err.data = data
+    throw err
   }
-
-  return body
+  return data
 }
 
 export const api = {
-  register: (data) =>
-    request('/api/auth/register', { method: 'POST', body: JSON.stringify(data) }),
-  login: (data) =>
-    request('/api/auth/login', { method: 'POST', body: JSON.stringify(data) }),
+  // Auth
+  me: () => request('/api/auth/me'),
+  register: (body) => request('/api/auth/register', { method: 'POST', body: JSON.stringify(body) }),
+  login: (body) => request('/api/auth/login', { method: 'POST', body: JSON.stringify(body) }),
   logout: () => request('/api/auth/logout', { method: 'POST' }),
-  me: () => request('/api/auth/me', { method: 'GET' }),
+
+  // Hats
+  getHats: (params = {}) => {
+    const q = new URLSearchParams(
+      Object.fromEntries(Object.entries(params).filter(([, v]) => v != null && v !== '')),
+    ).toString()
+    return request(`/api/hats${q ? `?${q}` : ''}`)
+  },
+  getHat: (id) => request(`/api/hats/${id}`),
+  createHat: (body) => request('/api/hats', { method: 'POST', body: JSON.stringify(body) }),
+  updateHat: (id, body) => request(`/api/hats/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+  deleteHat: (id) => request(`/api/hats/${id}`, { method: 'DELETE' }),
+
+  getShowroom: () => request('/api/showroom'),
+  getOrbits: () => request('/api/orbits'),
+  createOrbit: (name) => request('/api/orbits', { method: 'POST', body: JSON.stringify({ name }) }),
+  createEscrow: (body) => request('/api/escrows', { method: 'POST', body: JSON.stringify(body) }),
+  fundEscrow: (id) => request(`/api/escrows/${id}/fund`, { method: 'POST' }),
+  releaseEscrow: (id) => request(`/api/escrows/${id}/release`, { method: 'POST' }),
+}
+
+export async function uploadToCloudinary(file) {
+  const cloud = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME
+  const preset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET
+  const folder = import.meta.env.VITE_CLOUDINARY_FOLDER || 'talentworld_hats'
+  if (!cloud || !preset) throw new Error('Cloudinary env vars missing')
+
+  const fd = new FormData()
+  fd.append('file', file)
+  fd.append('upload_preset', preset)
+  fd.append('folder', folder)
+
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${cloud}/auto/upload`, {
+    method: 'POST',
+    body: fd,
+  })
+  const data = await res.json()
+  if (!res.ok) throw new Error(data.error?.message || 'Upload failed')
+  return {
+    url: data.secure_url,
+    public_id: data.public_id,
+    type: data.resource_type || 'image',
+  }
+}
+
+export function maskLeaks(text) {
+  if (!text) return text
+  return text.replace(/\b(whatsapp|telegram|tg\b|call me|my number|hmu|dm me)\b/gi, '••••')
 }

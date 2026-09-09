@@ -1,13 +1,16 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { useAuth } from './context/AuthContext.jsx'
 import AuthPage from './pages/AuthPage.jsx'
-import Dashboard from './pages/Dashboard.jsx'
+import Layout from './components/Layout.jsx'
+import Feed from './pages/Feed.jsx'
+import ShowroomPage from './pages/ShowroomPage.jsx'
+import MyHats from './components/MyHats.jsx'
+import HatForm from './components/HatForm.jsx'
+import Profile from './pages/Profile.jsx'
 
 function FullPageSpinner() {
   return (
-    <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', color: '#6d7080' }}>
-      Loading…
-    </div>
+    <div className="min-h-screen grid place-items-center text-gray-500">Loading…</div>
   )
 }
 
@@ -15,7 +18,7 @@ function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
   if (loading) return <FullPageSpinner />
   if (!user) return <Navigate to="/auth" replace />
-  return children
+  return <Layout>{children}</Layout>
 }
 
 function PublicOnlyRoute({ children }) {
@@ -40,7 +43,39 @@ export default function App() {
         path="/"
         element={
           <ProtectedRoute>
-            <Dashboard />
+            <Feed />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/showroom"
+        element={
+          <ProtectedRoute>
+            <ShowroomPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/my-hats"
+        element={
+          <ProtectedRoute>
+            <MyHats />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/create"
+        element={
+          <ProtectedRoute>
+            <HatForm />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/profile"
+        element={
+          <ProtectedRoute>
+            <Profile />
           </ProtectedRoute>
         }
       />

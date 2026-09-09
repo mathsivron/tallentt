@@ -23,7 +23,7 @@ async function main() {
 
   try {
     await pool.query(sql)
-    console.log('✅ Schema applied (users table ready).')
+    console.log('✅ Schema applied (full TalentWorld schema applied).')
   } catch (err) {
     console.error('❌ Migration failed:', err.message)
     process.exitCode = 1
