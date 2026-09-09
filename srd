@@ -1,0 +1,142 @@
+# TalentWorld (TWORLD) - System Requirements Document
+## Version 4.0 - Final Locked (No Platform Fees)
+**Date:** September 7, 2026  
+**Status:** All 7 clarifications locked + Flow diagram added + Platform charges removed per user request  
+**Card Standard:** 260px min / 300px max / 18px gap (synced across My Hats, Bento, Showroom)
+
+---
+
+### 1. Overview
+TalentWorld lets one account wear multiple Hats. A Hat = professional identity + hiring intent. Split-file architecture: MyHats, BentoCard, Showroom, Profile, Dashboard.
+
+**Decisions locked:**
+1. Orbits = Open custom, updatable
+2. Dual role = Allow manual toggle Creator ↔ Employer
+3. Portfolio = Talent required, Client optional
+4. Verified = Client Ltd/Plc/Corp = verified badge
+5. Escrow = Hat priceMin (not fixed)
+6. Showroom sort = Auto by bookings + orbitScore + likes
+7. Width = 260px synced
+8. Platform fees = **Dropped for now** (no 15% / 7%)
+
+---
+
+### 2. User Flow - Registration to Accepting Payment
+**Diagram:** See `TalentWorld_UserFlow_v4.png` - 3 swimlanes: Talent (Creator) Blue, Client (Employer) Black, System Green.
+
+#### Flow Steps:
+
+**Step 1: Registration**
+- User registers, chooses initial role: Creator (Talent), Employer (Client), or Dual (both).
+- Account Created system event.
+- Choose LGA, Country, Username.
+
+**Step 2: Create Hat**
+- Talent Hat: hatTitle like "UI Designer Available for SaaS", orbit, skills, hatType (Freelance/Contract), LGA, country, motto max 80 chars, **portfolio required** (image/video/audio). If missing, error: "Portfolio file is required for Talent hats".
+- Client Hat: hatTitle like "Looking for UI Designer for SaaS", verifiedName ending Ltd/Plc for badge, **portfolio optional** ("For clients, file upload is optional").
+- Open custom orbit: User can click + Add Custom Orbit, new orbit added to filter list.
+
+**Step 3: Set Availability & PriceMin**
+- Set Available boolean, rate, priceMin, priceMax, active flag.
+- Draft saved.
+
+**Step 4: Browse Feed**
+- Role toggle at top: Creator pill and Employer pill. Persists in localStorage `talentworld_role`.
+- If Creator → system shows Client cards (black pill). If Employer → shows Talent cards (blue #0A13E6 pill).
+- Helper text: "You are browsing as Creator → viewing Client cards" etc. Toggle allowed, not forced.
+
+**Step 5: Discovery - Bento Feed & Showroom**
+- **Bento Feed:** Same BentoCard for all, 260px cards. Search by username ^ LGA, skill, orbit. Filter, sort.
+- **Showroom:** Curated 12 talents (Elena Voss, Marcus Chen, etc.) with rating, rate, available dot, bookings, bio, portfolio. Filters All/Models/Actors/Musicians/Creators/Developers + custom orbits. Search + Available only toggle. Auto-sorted by bookings + orbitScore + likes. Top = Showroom Host.
+- Grid: repeat(auto-fill, minmax(260px, 1fr)), gap 18px.
+
+**Step 6: Action**
+- **Book (Talent Hat):** Employer clicks Book Talent on blue Talent card. Talent is booked.
+- **Apply (Client Hat):** Creator clicks Apply on black Client card. Application sent.
+
+**Step 7: Funding**
+- Client Funds Escrow. Amount = Hat priceMin (from Step 3). No platform fee added (dropped).
+
+**Step 8: Escrow Secured**
+- System: Escrow Initialized → Escrow Secured.
+- Badge changes from "Escrow: Not Funded • Contacts Locked 🔒" to "₦[priceMin] Secured • Contacts Unlocked 🔓" with green pulse.
+
+**Step 9: Work & Chat**
+- Contact details revealed, secure exchange.
+- **Anti-Leak Masking Active:** Regex `/\b(whatsapp|telegram|tg\b|call me|my number|hmu|dm me)\b/gi` masks external contacts to keep transaction inside escrow.
+
+**Step 10: Delivery / Completion**
+- Talent delivers work. Client reviews.
+- System marks Completion Confirmed, Work marked complete.
+
+**Step 11: Accept Payment / Release Escrow**
+- Client clicks Review & Confirm → Accept Payment.
+- Talent receives payment: Funds released to Talent (full priceMin, no deductions for now).
+- Escrow Release event.
+
+---
+
+### 3. Detailed Module Specs (No Fees)
+
+#### 3.1 Hat Model
+Fields: hatTitle, username, verifiedName, orbit (open custom), skills, hatType, country+flag+currency, lga, motto 80 max, media, priceMin/Max/rate, availability, rating, bookings, likes, commentsCount, orbitScore, jobsPosted/spent/events for Client.
+
+#### 3.2 BentoCard
+- Pill: Blue #0A13E6 Talent, Black Client.
+- Same component, two flows: Book Flow vs Apply Flow.
+- Swap positions button.
+- Responsive: 96% width max 1150px desktop, 100vw 100vh full-screen on Android <768px.
+
+#### 3.3 My Hats
+- Personal collection, 260px grid, list toggle, edit/delete, status sync everywhere.
+
+#### 3.4 Trust
+- Escrow = priceMin.
+- No platform charges for now (removed).
+- Contacts locked until escrow funded.
+
+#### 3.5 Search
+- Search Talents... ^username LGA, Search Clients... ^username LGA
+
+---
+
+### 4. User Stories - End to End
+
+**Registration:**
+- As a new user, I want to choose Creator, Employer, or Dual at registration so system knows what to show me.
+
+**Hat Creation:**
+- As Talent, I must upload portfolio to create Hat.
+- As Client, I can optionally upload reference material.
+- As user, I want to add custom orbit like "Drone Pilot" and see it in filters.
+
+**Browsing:**
+- As Dual user, I want to toggle Creator/Employer manually.
+- As user, I want to search by LGA like Yaba.
+
+**Action:**
+- As Employer, I want to Book Talent Hat.
+- As Creator, I want to Apply to Client Hat.
+
+**Escrow & Payment:**
+- As Client, I want to fund escrow = priceMin to unlock contacts.
+- As Talent, I want contacts unlocked only after escrow secured.
+- As Talent, after delivery, I want to receive full priceMin with no platform deduction (for now).
+
+---
+
+### 5. Platform Charges - Dropped
+Per your instruction, all platform charges removed in v4.0.
+- Previous: talent_commission 15%, client_fee 7% - **Removed**
+- Current: Talent receives 100% of priceMin.
+
+Future: Can re-add fees later without changing flow.
+
+---
+
+### 6. Files
+- Showroom split file: Showroom_SPLIT_Improved (260px, custom orbit, toggle)
+- Flow diagram: TalentWorld_UserFlow_v4.png
+
+---
+**End of SRD v4.0**
