@@ -9,8 +9,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['icons/icon-192.png', 'icons/icon-512.png'],
       manifest: {
-        name: 'TalentWorld',
-        short_name: 'TWORLD',
+        name: 'ChombuTar',
+        short_name: 'ChombuTar',
         description: 'Own your spotlight — talent marketplace with escrow',
         theme_color: '#0A13E6',
         background_color: '#ffffff',

@@ -1,7 +1,7 @@
 import { query } from '../_lib/db.js'
 import { json, methodNotAllowed } from '../_lib/http.js'
 
-const RESERVED = new Set(['admin', 'talent', 'test', 'tworld', 'talentworld', 'support', 'root'])
+const RESERVED = new Set(['admin', 'talent', 'test', 'chombutar', 'talentworld', 'tworld', 'support', 'root'])
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') return methodNotAllowed(res, ['GET'])
