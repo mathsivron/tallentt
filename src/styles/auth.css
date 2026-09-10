@@ -1,4 +1,4 @@
-/* ChombuTar V9 Auth — Own Your Spotlight 
+/* ChombuTar V9 Auth — Own Your Spotlight */
 :root {
   --v9-blue: #0000FF;
   --v9-ink: #111;
@@ -81,7 +81,7 @@
   .v9-logo-word .script-w { font-size: 44px; }
   .v9-logo-tag { font-size: 16px; }
 }
-*/
+
 /* Card */
 .v9-card {
   width: 100%;
