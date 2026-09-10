@@ -23,70 +23,98 @@ export default function Layout({ children }) {
       : 'You are browsing as Employer → viewing Talent cards'
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <header className="sticky top-0 z-40 bg-white border-b border-gray-200">
-        <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
-          <Link to="/" className="font-bold text-lg text-[#0A13E6] tracking-tight">
-            TWORLD
+    <div className="min-h-screen flex flex-col bg-[#F7F3EB] text-black antialiased">
+      <header className="sticky top-0 z-40 bg-[#F7F3EB]/90 backdrop-blur-xl border-b-[1.5px] border-black">
+        <div className="mx-auto max-w-[1200px] px-4 md:px-6 h-[64px] flex items-center justify-between gap-3">
+          <Link to="/" className="flex items-center gap-2.5 shrink-0">
+            <div className="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center font-bold text-[12px] border-[1.5px] border-black">
+              TW
+            </div>
+            <div className="hidden sm:block">
+              <div className="font-semibold text-[14px] leading-none tracking-tight">TalentWorld</div>
+              <div className="text-[10px] text-black/50 font-medium">Own your spotlight</div>
+            </div>
           </Link>
-          <nav className="hidden sm:flex items-center gap-1">
+
+          <nav className="hidden md:flex items-center gap-1">
             <NavItem to="/" icon={Home} label="Feed" />
             <NavItem to="/showroom" icon={Store} label="Showroom" />
             <NavItem to="/my-hats" icon={Briefcase} label="My Hats" />
             <NavItem to="/create" icon={PlusCircle} label="Create" />
             <NavItem to="/profile" icon={UserRound} label="Profile" />
           </nav>
+
           <div className="flex items-center gap-2">
-            <div className="flex rounded-full bg-gray-100 p-0.5 text-xs font-medium">
+            <div className="flex rounded-full bg-white border-[1.5px] border-black p-0.5 text-[11px] font-semibold">
               <button
                 type="button"
                 onClick={() => setBrowseRole('creator')}
-                className={`px-3 py-1 rounded-full transition ${browseRole === 'creator' ? 'bg-[#0A13E6] text-white' : ''}`}
+                className={`px-3 py-1.5 rounded-full transition ${
+                  browseRole === 'creator' ? 'bg-[#0A13E6] text-white' : 'text-black/60 hover:text-black'
+                }`}
               >
                 Creator
               </button>
               <button
                 type="button"
                 onClick={() => setBrowseRole('employer')}
-                className={`px-3 py-1 rounded-full transition ${browseRole === 'employer' ? 'bg-black text-white' : ''}`}
+                className={`px-3 py-1.5 rounded-full transition ${
+                  browseRole === 'employer' ? 'bg-black text-white' : 'text-black/60 hover:text-black'
+                }`}
               >
                 Employer
               </button>
             </div>
-            <button type="button" onClick={handleLogout} className="p-2 text-gray-500 hover:text-red-600" title="Log out">
-              <LogOut size={18} />
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="w-9 h-9 rounded-full border-[1.5px] border-black bg-white flex items-center justify-center text-black/60 hover:bg-black hover:text-white transition"
+              title="Log out"
+            >
+              <LogOut size={16} />
             </button>
           </div>
         </div>
-        <p className="text-center text-xs text-gray-500 pb-2 px-4">{helper}</p>
+        <p className="text-center text-[11px] text-black/50 pb-2.5 px-4 font-medium">{helper}</p>
       </header>
 
-      <main className="flex-1 max-w-6xl w-full mx-auto px-4 py-6">{children}</main>
+      <main className="flex-1 max-w-[1200px] w-full mx-auto px-4 md:px-6 py-6">{children}</main>
 
-      <nav className="sm:hidden fixed bottom-0 inset-x-0 bg-white border-t flex justify-around py-2 z-40">
-        <NavItem to="/" icon={Home} label="Feed" mobile />
-        <NavItem to="/showroom" icon={Store} label="Showroom" mobile />
-        <NavItem to="/create" icon={PlusCircle} label="Create" mobile />
-        <NavItem to="/my-hats" icon={Briefcase} label="Hats" mobile />
-        <NavItem to="/profile" icon={UserRound} label="Profile" mobile />
+      {/* Mobile bottom nav — matches reference */}
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 p-3">
+        <div className="bg-white rounded-[24px] shadow-[0_12px_40px_rgba(0,0,0,0.18)] border-[1.5px] border-black/5 px-2 h-14 flex items-center justify-around">
+          <NavItem to="/" icon={Home} label="Feed" mobile />
+          <NavItem to="/showroom" icon={Store} label="Show" mobile />
+          <NavItem to="/create" icon={PlusCircle} label="+" mobile accent />
+          <NavItem to="/my-hats" icon={Briefcase} label="Hats" mobile />
+          <NavItem to="/profile" icon={UserRound} label="You" mobile />
+        </div>
       </nav>
-      <div className="sm:hidden h-16" />
+      <div className="md:hidden h-20" />
     </div>
   )
 }
 
-function NavItem({ to, icon: Icon, label, mobile }) {
+function NavItem({ to, icon: Icon, label, mobile, accent }) {
   return (
     <NavLink
       to={to}
       className={({ isActive }) =>
-        `flex ${mobile ? 'flex-col items-center gap-0.5 text-[10px]' : 'items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm'} ${
-          isActive ? 'text-[#0A13E6] font-semibold' : 'text-gray-600'
-        }`
+        mobile
+          ? `w-10 h-10 rounded-full grid place-items-center transition ${
+              accent
+                ? 'bg-black text-white w-12 h-12 text-[18px]'
+                : isActive
+                  ? 'bg-[#0A13E6] text-white'
+                  : 'opacity-50'
+            }`
+          : `flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[13px] font-medium transition ${
+              isActive ? 'bg-[#0A13E6] text-white' : 'text-black/60 hover:text-black hover:bg-white'
+            }`
       }
     >
-      <Icon size={mobile ? 20 : 16} />
-      {label}
+      {mobile && accent ? <PlusCircle size={22} /> : <Icon size={mobile ? 18 : 15} />}
+      {!mobile && label}
     </NavLink>
   )
 }
@@ -96,7 +124,7 @@ export function useBrowseRole() {
   useEffect(() => {
     const onStorage = () => setRole(localStorage.getItem('talentworld_role') || 'creator')
     window.addEventListener('storage', onStorage)
-    const id = setInterval(onStorage, 500)
+    const id = setInterval(onStorage, 400)
     return () => {
       window.removeEventListener('storage', onStorage)
       clearInterval(id)

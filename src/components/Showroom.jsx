@@ -30,12 +30,19 @@ export default function Showroom({ onBook }) {
         if (!cancelled) setLoading(false)
       }
     })()
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   const filtered = hats.filter((h) => {
     if (availableOnly && !h.availability) return false
-    if (filter !== 'All' && h.orbit !== filter && !(h.orbit || '').toLowerCase().includes(filter.toLowerCase())) return false
+    if (
+      filter !== 'All' &&
+      h.orbit !== filter &&
+      !(h.orbit || '').toLowerCase().includes(filter.toLowerCase())
+    )
+      return false
     if (search) {
       const q = search.toLowerCase()
       const match =
@@ -63,22 +70,32 @@ export default function Showroom({ onBook }) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <div className="flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
-        <h1 className="text-2xl font-bold">Showroom</h1>
+        <div>
+          <h1 className="text-[22px] font-bold tracking-tight">Showroom</h1>
+          <p className="text-[12px] text-black/50 font-medium mt-0.5">
+            Curated top talents · sorted by bookings + orbit score + likes
+          </p>
+        </div>
         <div className="flex items-center gap-2">
           <div className="relative flex-1 sm:w-64">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-black/40" />
             <input
               type="search"
               placeholder="Search name / skill…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#0A13E6]/30"
+              className="w-full pl-9 pr-3 h-10 rounded-full border-[1.5px] border-black bg-white text-[13px] font-medium outline-none focus:ring-4 focus:ring-black/[0.04]"
             />
           </div>
-          <label className="flex items-center gap-1.5 text-sm whitespace-nowrap">
-            <input type="checkbox" checked={availableOnly} onChange={(e) => setAvailableOnly(e.target.checked)} />
+          <label className="flex items-center gap-1.5 text-[12px] font-semibold whitespace-nowrap cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={availableOnly}
+              onChange={(e) => setAvailableOnly(e.target.checked)}
+              className="rounded border-black"
+            />
             Available only
           </label>
         </div>
@@ -90,8 +107,10 @@ export default function Showroom({ onBook }) {
             key={f}
             type="button"
             onClick={() => setFilter(f)}
-            className={`px-3 py-1.5 rounded-full text-sm font-medium transition ${
-              filter === f ? 'bg-[#0A13E6] text-white' : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
+            className={`px-3.5 py-1.5 rounded-full text-[12px] font-semibold border-[1.5px] transition ${
+              filter === f
+                ? 'bg-[#0A13E6] text-white border-black shadow'
+                : 'bg-white border-black/15 text-black/70 hover:border-black hover:text-black'
             }`}
           >
             {f}
@@ -104,48 +123,50 @@ export default function Showroom({ onBook }) {
               key={o.id}
               type="button"
               onClick={() => setFilter(o.name)}
-              className={`px-3 py-1.5 rounded-full text-sm font-medium transition ${
-                filter === o.name ? 'bg-[#0A13E6] text-white' : 'bg-white border border-gray-200 text-gray-700'
+              className={`px-3.5 py-1.5 rounded-full text-[12px] font-semibold border-[1.5px] transition ${
+                filter === o.name
+                  ? 'bg-[#0A13E6] text-white border-black shadow'
+                  : 'bg-white border-black/15 text-black/70'
               }`}
             >
               {o.name}
             </button>
           ))}
-        <div className="flex items-center gap-1 ml-1">
+        <div className="flex items-center gap-1.5 ml-1">
           <input
             value={customOrbit}
             onChange={(e) => setCustomOrbit(e.target.value)}
             placeholder="Custom orbit"
-            className="px-2 py-1.5 rounded-lg border border-gray-200 text-sm w-32"
+            className="px-3 h-8 rounded-full border-[1.5px] border-black/15 bg-white text-[12px] font-medium w-32 outline-none focus:border-black"
           />
           <button
             type="button"
             disabled={adding}
             onClick={addOrbit}
-            className="p-1.5 rounded-lg bg-gray-100 hover:bg-gray-200"
+            className="w-8 h-8 rounded-full bg-white border-[1.5px] border-black flex items-center justify-center hover:bg-black hover:text-white transition"
             title="Add custom orbit"
           >
-            <Plus size={16} />
+            <Plus size={14} />
           </button>
         </div>
       </div>
 
       {loading ? (
-        <p className="text-gray-500 py-12 text-center">Loading showroom…</p>
+        <p className="text-black/40 py-16 text-center text-[13px] font-medium">Loading showroom…</p>
       ) : filtered.length === 0 ? (
-        <p className="text-gray-500 py-12 text-center">No talents match your filters.</p>
+        <p className="text-black/40 py-16 text-center text-[13px] font-medium">No talents match your filters.</p>
       ) : (
         <div className="hats-grid">
           {filtered.map((h) => (
-            <div key={h.id} className="relative">
+            <div key={h.id} className="relative pt-2">
               {h.isHost && (
-                <span className="absolute -top-2 left-2 z-10 bg-amber-400 text-black text-[10px] font-bold px-2 py-0.5 rounded-full shadow">
-                  SHOWROOM HOST
+                <span className="absolute -top-0 left-2 z-10 bg-[#FFBD2E] text-black text-[9px] font-bold tracking-widest uppercase px-2 py-0.5 rounded-full border-[1.5px] border-black shadow">
+                  Showroom Host
                 </span>
               )}
               {h.availability && (
-                <span className="absolute -top-2 right-2 z-10 bg-emerald-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow">
-                  AVAILABLE FOR BOOKING
+                <span className="absolute -top-0 right-2 z-10 bg-[#16C784] text-white text-[9px] font-bold tracking-widest uppercase px-2 py-0.5 rounded-full border-[1.5px] border-black shadow">
+                  Available
                 </span>
               )}
               <BentoCard hat={h} onBook={onBook} />

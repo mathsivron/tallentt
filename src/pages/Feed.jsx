@@ -24,7 +24,9 @@ export default function Feed() {
         if (!cancelled) setLoading(false)
       }
     })()
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+    }
   }, [hatRole, search])
 
   async function handleBook(hat) {
@@ -40,29 +42,36 @@ export default function Feed() {
   }
 
   async function handleApply(hat) {
-    alert(`Application sent for “${hat.hat_title}”. (Demo — wire messaging next.)`)
+    alert(`Application sent for “${hat.hat_title}”. (Wire messaging next.)`)
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold">Feed</h1>
+        <div>
+          <h1 className="text-[22px] font-bold tracking-tight">Feed</h1>
+          <p className="text-[12px] text-black/50 font-medium mt-0.5">
+            {hatRole === 'talent' ? 'Browsing talent hats' : 'Browsing client hats'}
+          </p>
+        </div>
         <div className="relative sm:w-72">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-black/40" />
           <input
             type="search"
             placeholder={hatRole === 'talent' ? 'Search talents…' : 'Search clients…'}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#0A13E6]/30"
+            className="w-full pl-9 pr-3 h-10 rounded-full border-[1.5px] border-black bg-white text-[13px] font-medium outline-none focus:ring-4 focus:ring-black/[0.04]"
           />
         </div>
       </div>
 
       {loading ? (
-        <p className="text-center text-gray-500 py-12">Loading…</p>
+        <p className="text-center text-black/40 py-16 text-[13px] font-medium">Loading…</p>
       ) : hats.length === 0 ? (
-        <p className="text-center text-gray-500 py-12">No hats yet. Create one or check back soon.</p>
+        <div className="text-center py-16 bg-white rounded-[24px] border-[1.5px] border-dashed border-black/20">
+          <p className="text-black/50 text-[13px] font-medium">No hats yet. Create one or check back soon.</p>
+        </div>
       ) : (
         <div className="hats-grid">
           {hats.map((h) => (

@@ -1,6 +1,8 @@
 import { query } from '../_lib/db.js'
-import { getSessionUser, toPublicUser } from '../_lib/auth.js'
+import { getSessionUser } from '../_lib/auth.js'
 import { json, methodNotAllowed, readBody, isVerifiedName } from '../_lib/http.js'
+
+import { computeOrbitScore } from '../_lib/orbitScore.js'
 
 async function attachMedia(hats) {
   if (!hats.length) return hats
@@ -14,14 +16,18 @@ async function attachMedia(hats) {
     if (!byHat[m.hat_id]) byHat[m.hat_id] = []
     byHat[m.hat_id].push(m)
   }
-  return hats.map((h) => ({ ...h, media: byHat[h.id] || [] }))
+  return hats.map((h) => ({
+    ...h,
+    media: byHat[h.id] || [],
+    confidence: h.orbit_score, // alias for UI
+  }))
 }
 
 export default async function handler(req, res) {
   if (req.method === 'GET') {
     try {
       const url = new URL(req.url, `http://${req.headers.host}`)
-      const role = url.searchParams.get('role') // talent | client
+      const role = url.searchParams.get('role')
       const orbit = url.searchParams.get('orbit')
       const lga = url.searchParams.get('lga')
       const search = url.searchParams.get('search')
@@ -67,8 +73,7 @@ export default async function handler(req, res) {
          LIMIT 100`,
         params,
       )
-      const withMedia = await attachMedia(rows)
-      return json(res, 200, { hats: withMedia })
+      return json(res, 200, { hats: await attachMedia(rows) })
     } catch (err) {
       console.error(err)
       return json(res, 500, { error: 'Failed to fetch hats' })
@@ -80,10 +85,17 @@ export default async function handler(req, res) {
       const session = getSessionUser(req)
       if (!session?.sub) return json(res, 401, { error: 'Unauthorized' })
 
+      // Username always comes from the signed-in account — never re-asked on hat create
+      const { rows: userRows } = await query(
+        `SELECT id, username, full_name FROM users WHERE id = $1`,
+        [session.sub],
+      )
+      if (!userRows[0]) return json(res, 401, { error: 'User not found' })
+      const accountUsername = userRows[0].username
+
       const body = await readBody(req)
       const {
         hat_title,
-        username,
         verified_name,
         orbit,
         skills = [],
@@ -96,35 +108,47 @@ export default async function handler(req, res) {
         price_min,
         price_max,
         rate,
-        role = 'talent',
+        role = 'talent', // talent hat = talent listing
         media = [],
         availability = true,
       } = body
 
-      if (!hat_title || !username || !orbit || price_min == null) {
-        return json(res, 400, { error: 'hat_title, username, orbit, and price_min are required' })
+      if (!hat_title || !orbit || price_min == null) {
+        return json(res, 400, { error: 'hat_title, orbit, and price_min are required' })
       }
       if (role === 'talent' && (!media || media.length === 0)) {
         return json(res, 400, { error: 'Portfolio file is required for Talent hats' })
       }
 
       const verified = isVerifiedName(verified_name)
+      const skillList = Array.isArray(skills) ? skills : []
+      const orbitScore = computeOrbitScore({
+        mediaCount: media.length,
+        isVerified: verified,
+        skillsCount: skillList.length,
+        hasMotto: Boolean(motto && String(motto).trim()),
+        hasPrice: Number(price_min) > 0,
+        availability,
+        bookings: 0,
+        likes: 0,
+        rating: 0,
+      })
 
       const { rows } = await query(
         `INSERT INTO hats (
           user_id, hat_title, username, verified_name, is_verified, orbit, skills,
           hat_type, country, country_flag, currency, lga, motto, price_min, price_max,
-          rate, role, availability
-        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
+          rate, role, availability, orbit_score
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
         RETURNING *`,
         [
           session.sub,
           hat_title,
-          username,
+          accountUsername,
           verified_name || null,
           verified,
           orbit,
-          skills,
+          skillList,
           hat_type,
           country || null,
           country_flag || null,
@@ -136,6 +160,7 @@ export default async function handler(req, res) {
           rate != null ? Number(rate) : null,
           role,
           availability,
+          orbitScore,
         ],
       )
       const hat = rows[0]

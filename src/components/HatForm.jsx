@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Upload, X } from 'lucide-react'
+import { Upload, X, Sparkles } from 'lucide-react'
 import { api, uploadToCloudinary } from '../lib/api'
+import { useAuth } from '../context/AuthContext'
 
 const COUNTRIES = [
   { name: 'Nigeria', flag: '🇳🇬', currency: 'NGN' },
@@ -23,6 +24,7 @@ export default function HatForm() {
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const editId = params.get('edit')
+  const { user } = useAuth()
 
   const [role, setRole] = useState('talent')
   const [hatTitle, setHatTitle] = useState('')
@@ -46,30 +48,35 @@ export default function HatForm() {
   const [orbits, setOrbits] = useState(DEFAULT_ORBITS)
 
   useEffect(() => {
-    api.getOrbits().then((d) => {
-      if (d.orbits?.length) setOrbits(d.orbits.map((o) => o.name))
-    }).catch(() => {})
+    api.getOrbits()
+      .then((d) => {
+        if (d.orbits?.length) setOrbits(d.orbits.map((o) => o.name))
+      })
+      .catch(() => {})
   }, [])
 
   useEffect(() => {
     if (!editId) return
-    api.getHat(editId).then(({ hat }) => {
-      setRole(hat.role || 'talent')
-      setHatTitle(hat.hat_title || '')
-      setUsername(hat.username || '')
-      setVerifiedName(hat.verified_name || '')
-      setOrbit(hat.orbit || '')
-      setSkills((hat.skills || []).join(', '))
-      setHatType(hat.hat_type || 'Freelance')
-      const c = COUNTRIES.find((x) => x.name === hat.country) || COUNTRIES[0]
-      setCountry(c)
-      setLga(hat.lga || '')
-      setMotto(hat.motto || '')
-      setPriceMin(String(hat.price_min ?? ''))
-      setPriceMax(hat.price_max != null ? String(hat.price_max) : '')
-      setRate(hat.rate != null ? String(hat.rate) : '')
-      setMedia(hat.media || [])
-    }).catch((e) => setError(e.message))
+    api
+      .getHat(editId)
+      .then(({ hat }) => {
+        setRole(hat.role || 'talent')
+        setHatTitle(hat.hat_title || '')
+        setUsername(hat.username || '')
+        setVerifiedName(hat.verified_name || '')
+        setOrbit(hat.orbit || '')
+        setSkills((hat.skills || []).join(', '))
+        setHatType(hat.hat_type || 'Freelance')
+        const c = COUNTRIES.find((x) => x.name === hat.country) || COUNTRIES[0]
+        setCountry(c)
+        setLga(hat.lga || '')
+        setMotto(hat.motto || '')
+        setPriceMin(String(hat.price_min ?? ''))
+        setPriceMax(hat.price_max != null ? String(hat.price_max) : '')
+        setRate(hat.rate != null ? String(hat.rate) : '')
+        setMedia(hat.media || [])
+      })
+      .catch((e) => setError(e.message))
   }, [editId])
 
   async function onFile(e) {
@@ -116,10 +123,13 @@ export default function HatForm() {
       }
       const body = {
         hat_title: hatTitle,
-        username,
+        // username is bound server-side from the signed-in user
         verified_name: verifiedName || undefined,
         orbit: finalOrbit,
-        skills: skills.split(',').map((s) => s.trim()).filter(Boolean),
+        skills: skills
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean),
         hat_type: hatType,
         country: country.name,
         country_flag: country.flag,
@@ -144,43 +154,82 @@ export default function HatForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="max-w-xl mx-auto space-y-5 bg-white rounded-2xl border p-6 shadow-sm">
-      <h1 className="text-xl font-bold">{editId ? 'Edit Hat' : 'Create Hat'}</h1>
+    <form
+      onSubmit={onSubmit}
+      className="max-w-[520px] mx-auto space-y-5 bg-white rounded-[24px] border-[1.5px] border-black p-5 md:p-7 shadow-[0_8px_24px_rgba(0,0,0,0.06)]"
+    >
+      <div>
+        <h1 className="text-[20px] font-bold tracking-tight">{editId ? 'Edit Hat' : 'Create Hat'}</h1>
+        <p className="text-[12px] text-black/50 mt-0.5 font-medium">A hat is a talent listing under your account · Orbit score = confidence</p>
+      </div>
 
-      <div className="flex gap-2">
+      {/* Role toggle */}
+      <div className="flex gap-2 p-1 rounded-full bg-[#F5F3EF] border-[1.5px] border-black">
         {['talent', 'client'].map((r) => (
           <button
             key={r}
             type="button"
-            onClick={() => setRole(r)}
-            className={`flex-1 py-2 rounded-xl text-sm font-medium capitalize ${
-              role === r ? (r === 'talent' ? 'bg-[#0A13E6] text-white' : 'bg-black text-white') : 'bg-gray-100'
+            onClick={() => {
+              setRole(r)
+              setPortfolioError(false)
+            }}
+            className={`flex-1 h-10 rounded-full text-[13px] font-semibold capitalize transition ${
+              role === r
+                ? r === 'talent'
+                  ? 'bg-[#0A13E6] text-white border-[1.5px] border-black shadow'
+                  : 'bg-black text-white border-[1.5px] border-black shadow'
+                : 'text-black/50 hover:text-black'
             }`}
           >
-            {r}
+            {r === 'talent' ? 'Talent hat' : 'Client hat'}
           </button>
         ))}
       </div>
 
       <Field label="Hat title" required>
-        <input className="input" value={hatTitle} onChange={(e) => setHatTitle(e.target.value)} required />
+        <input className="tw-input" value={hatTitle} onChange={(e) => setHatTitle(e.target.value)} required placeholder="e.g. UI Designer for SaaS" />
       </Field>
-      <Field label="Username" required>
-        <input className="input" value={username} onChange={(e) => setUsername(e.target.value)} required />
-      </Field>
-      <Field label="Verified name (optional — ends with Ltd/Plc/Corp/Inc/LLC for badge)">
-        <input className="input" value={verifiedName} onChange={(e) => setVerifiedName(e.target.value)} placeholder="e.g. Acme Studios Ltd" />
+
+      <div className="rounded-[14px] border-[1.5px] border-black/10 bg-[#F5F3EF] px-4 py-3">
+        <div className="tw-label mb-1">Account</div>
+        <p className="text-[14px] font-semibold">
+          @{user?.username || username || '…'}
+          <span className="ml-2 text-[11px] font-medium text-black/40 normal-case tracking-normal">
+            from your signed-in profile — not editable per hat
+          </span>
+        </p>
+      </div>
+
+      <Field label="Verified name (optional)">
+        <input
+          className="tw-input"
+          value={verifiedName}
+          onChange={(e) => setVerifiedName(e.target.value)}
+          placeholder="e.g. Acme Studios Ltd"
+        />
+        <p className="text-[10px] text-black/40 mt-1.5 font-medium">
+          Ends with Ltd / Plc / Corp / Inc / LLC → verified badge
+        </p>
       </Field>
 
       <Field label="Orbit" required>
-        <select className="input" value={orbit} onChange={(e) => { setOrbit(e.target.value); setCustomOrbit('') }}>
+        <select
+          className="tw-input appearance-none"
+          value={orbit}
+          onChange={(e) => {
+            setOrbit(e.target.value)
+            setCustomOrbit('')
+          }}
+        >
           <option value="">Select orbit…</option>
           {orbits.map((o) => (
-            <option key={o} value={o}>{o}</option>
+            <option key={o} value={o}>
+              {o}
+            </option>
           ))}
         </select>
         <input
-          className="input mt-2"
+          className="tw-input mt-2"
           placeholder="Or type custom orbit"
           value={customOrbit}
           onChange={(e) => setCustomOrbit(e.target.value)}
@@ -188,120 +237,160 @@ export default function HatForm() {
       </Field>
 
       <Field label="Skills (comma-separated)">
-        <input className="input" value={skills} onChange={(e) => setSkills(e.target.value)} placeholder="React, Figma, Voice-over" />
+        <input className="tw-input" value={skills} onChange={(e) => setSkills(e.target.value)} placeholder="React, Figma, Voice-over" />
       </Field>
 
       <Field label="Hat type">
-        <select className="input" value={hatType} onChange={(e) => setHatType(e.target.value)}>
-          {HAT_TYPES.map((t) => <option key={t}>{t}</option>)}
+        <select className="tw-input appearance-none" value={hatType} onChange={(e) => setHatType(e.target.value)}>
+          {HAT_TYPES.map((t) => (
+            <option key={t}>{t}</option>
+          ))}
         </select>
       </Field>
 
       <div className="grid grid-cols-2 gap-3">
         <Field label="Country">
           <select
-            className="input"
+            className="tw-input appearance-none"
             value={country.name}
             onChange={(e) => setCountry(COUNTRIES.find((c) => c.name === e.target.value) || COUNTRIES[0])}
           >
             {COUNTRIES.map((c) => (
-              <option key={c.name} value={c.name}>{c.flag} {c.name}</option>
+              <option key={c.name} value={c.name}>
+                {c.flag} {c.name}
+              </option>
             ))}
           </select>
         </Field>
         <Field label="LGA / City">
-          <input className="input" value={lga} onChange={(e) => setLga(e.target.value)} />
+          <input className="tw-input" value={lga} onChange={(e) => setLga(e.target.value)} placeholder="Yaba" />
         </Field>
       </div>
 
       <Field label={`Motto (${motto.length}/80)`}>
         <textarea
-          className="input min-h-[72px]"
+          className="tw-input min-h-[88px] resize-none"
           maxLength={80}
           value={motto}
           onChange={(e) => setMotto(e.target.value)}
+          placeholder="e.g. Rhythm lives in every heartbeat I play."
         />
+        <div className="flex items-center gap-1.5 mt-1.5">
+          <Sparkles size={12} className="text-violet-600" />
+          <span className="text-[10px] font-bold text-violet-700 uppercase tracking-wide">AI-assisted suggestions coming</span>
+        </div>
       </Field>
 
       <div className="grid grid-cols-3 gap-3">
-        <Field label="Price min (₦)" required>
-          <input type="number" min="0" className="input" value={priceMin} onChange={(e) => setPriceMin(e.target.value)} required />
+        <Field label="Price min *" required>
+          <input type="number" min="0" className="tw-input" value={priceMin} onChange={(e) => setPriceMin(e.target.value)} required placeholder="50000" />
         </Field>
         <Field label="Price max">
-          <input type="number" min="0" className="input" value={priceMax} onChange={(e) => setPriceMax(e.target.value)} />
+          <input type="number" min="0" className="tw-input" value={priceMax} onChange={(e) => setPriceMax(e.target.value)} placeholder="120000" />
         </Field>
         <Field label="Rate">
-          <input type="number" min="0" className="input" value={rate} onChange={(e) => setRate(e.target.value)} />
+          <input type="number" min="0" className="tw-input" value={rate} onChange={(e) => setRate(e.target.value)} placeholder="/hr" />
         </Field>
       </div>
+      <p className="text-[10px] font-medium text-black/40 -mt-3">
+        Currency: {country.flag} {country.currency} · Escrow = price min
+      </p>
 
-      <Field
-        label={
-          role === 'talent'
-            ? 'Portfolio (required for Talent)'
-            : 'Portfolio (optional for Client)'
-        }
-      >
-        <div className={`border-2 border-dashed rounded-xl p-4 ${portfolioError ? 'border-red-500 ring-2 ring-red-200' : 'border-gray-200'}`}>
-          <label className="flex flex-col items-center gap-2 cursor-pointer">
-            <Upload size={24} className="text-gray-400" />
-            <span className="text-sm text-gray-600">{uploading ? 'Uploading…' : 'Upload image / video / audio'}</span>
-            <input type="file" accept="image/*,video/*,audio/*" multiple className="hidden" onChange={onFile} disabled={uploading} />
+      {/* Portfolio upload — DECISION #3 */}
+      <div className="space-y-2">
+        <label className="tw-label flex items-center gap-2 flex-wrap">
+          {role === 'talent' ? (
+            <>
+              Upload File *
+              <span className="normal-case font-semibold text-[10px] px-2 py-0.5 rounded-full bg-red-50 border border-red-200 text-red-700">
+                Required for Talent
+              </span>
+            </>
+          ) : (
+            <>
+              Upload File
+              <span className="normal-case font-medium text-[10px] px-2 py-0.5 rounded-full bg-[#f2f2f1] border border-black/10 text-black/60">
+                Optional for Client
+              </span>
+            </>
+          )}
+        </label>
+        <p className={`text-[10px] font-medium px-0.5 ${portfolioError ? 'text-red-600 font-semibold' : 'text-black/50'}`}>
+          {role === 'talent'
+            ? 'Portfolio file is required for Talent hats — showcase your work (image, video, audio).'
+            : 'For clients, file upload is optional — add reference material if needed.'}
+        </p>
+
+        <div
+          className={`rounded-[16px] border-[1.5px] border-dashed p-4 transition ${
+            portfolioError
+              ? 'border-red-400 ring-4 ring-red-100 bg-red-50/30'
+              : 'border-black/15 bg-[#F5F3EF]/50'
+          }`}
+        >
+          <label className="flex flex-col items-center gap-2 cursor-pointer py-2">
+            <div className="w-10 h-10 rounded-full bg-white border-[1.5px] border-black flex items-center justify-center">
+              <Upload size={18} />
+            </div>
+            <span className="text-[12px] font-semibold text-black/70">
+              {uploading ? 'Uploading…' : 'Upload image / video / audio'}
+            </span>
+            <input
+              type="file"
+              accept="image/*,video/*,audio/*"
+              multiple
+              className="hidden"
+              onChange={onFile}
+              disabled={uploading}
+            />
           </label>
+
           {media.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-2">
               {media.map((m, i) => (
-                <div key={m.public_id || i} className="relative w-20 h-20 rounded-lg overflow-hidden bg-gray-100">
+                <div
+                  key={m.public_id || i}
+                  className="relative w-20 h-20 rounded-[12px] overflow-hidden bg-white border-[1.5px] border-black/10"
+                >
                   {m.type === 'image' || !m.type ? (
                     <img src={m.url} alt="" className="w-full h-full object-cover" />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-xs uppercase">{m.type}</div>
+                    <div className="w-full h-full flex items-center justify-center text-[10px] font-bold uppercase text-black/40">
+                      {m.type}
+                    </div>
                   )}
-                  <button type="button" onClick={() => removeMedia(i)} className="absolute top-0.5 right-0.5 p-0.5 bg-black/60 rounded text-white">
-                    <X size={12} />
+                  <button
+                    type="button"
+                    onClick={() => removeMedia(i)}
+                    className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/70 text-white flex items-center justify-center"
+                  >
+                    <X size={10} />
                   </button>
                 </div>
               ))}
             </div>
           )}
-          {portfolioError && <p className="text-red-600 text-xs mt-2">Portfolio file is required for Talent hats</p>}
-          {role === 'client' && <p className="text-xs text-gray-500 mt-2">For clients, file upload is optional</p>}
         </div>
-      </Field>
+      </div>
 
-      {error && <p className="text-red-600 text-sm">{error}</p>}
+      {error && (
+        <div className="rounded-[12px] border-[1.5px] border-red-200 bg-red-50 px-4 py-2.5 text-[13px] font-medium text-red-700">
+          {error}
+        </div>
+      )}
 
-      <button
-        type="submit"
-        disabled={submitting || uploading}
-        className="w-full py-3 rounded-xl bg-[#0A13E6] text-white font-semibold hover:bg-[#080fb8] disabled:opacity-60"
-      >
+      <button type="submit" disabled={submitting || uploading} className="tw-btn-primary w-full disabled:opacity-60">
         {submitting ? 'Saving…' : editId ? 'Update Hat' : 'Create Hat'}
       </button>
-
-      <style>{`
-        .input {
-          width: 100%;
-          padding: 0.5rem 0.75rem;
-          border-radius: 0.75rem;
-          border: 1px solid #e5e7eb;
-          font-size: 0.875rem;
-        }
-        .input:focus {
-          outline: none;
-          box-shadow: 0 0 0 2px rgba(10, 19, 230, 0.25);
-          border-color: #0A13E6;
-        }
-      `}</style>
     </form>
   )
 }
 
 function Field({ label, required, children }) {
   return (
-    <label className="block space-y-1">
-      <span className="text-sm font-medium text-gray-700">
-        {label} {required && <span className="text-red-500">*</span>}
+    <label className="block space-y-1.5">
+      <span className="tw-label">
+        {label} {required && <span className="text-red-500 normal-case">*</span>}
       </span>
       {children}
     </label>

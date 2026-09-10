@@ -2,43 +2,182 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --tw-bg: #F7F3EB;
+  --tw-surface: #F5F3EF;
+  --tw-brand: #0A13E6;
+  --tw-border: 1.5px solid #000;
+  /* Dynamic viewport height — fixes Android Chrome URL-bar jump */
+  --app-vh: 100vh;
+  --app-vh: 100dvh;
+}
+
 html, body {
+  width: 100%;
   height: 100%;
   max-width: 100%;
   overflow-x: hidden;
   -webkit-tap-highlight-color: transparent;
+  background: var(--tw-bg);
+  color: #000;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
-img {
-  max-width: 100%;
+/* Prevent iOS/Android rubber-band scroll behind modals */
+html.modal-open,
+body.modal-open {
+  overflow: hidden !important;
+  position: fixed !important;
+  width: 100% !important;
+  height: 100% !important;
+  touch-action: none;
+  overscroll-behavior: none;
 }
 
-/* Card grid standard — DECISION #7 */
+img, video { max-width: 100%; }
+
+/* Card grid — DECISION #7 */
 .hats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 18px;
 }
-
-.hats-grid > * {
-  max-width: 300px;
-}
+.hats-grid > * { max-width: 300px; }
 
 /* Escrow green pulse */
 @keyframes escrow-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
-  50% { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(22, 199, 132, 0.45); }
+  50% { box-shadow: 0 0 0 8px rgba(22, 199, 132, 0); }
 }
-.escrow-secured {
-  animation: escrow-pulse 2s ease-in-out infinite;
+.escrow-secured { animation: escrow-pulse 2s ease-in-out infinite; }
+
+@keyframes slideUp {
+  from { transform: translateY(16px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.animate-slide-up { animation: slideUp 0.28s ease; }
+
+/* ── Modal shell ─────────────────────────────────────────── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.4);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+  /* Android: fill the visual viewport, not the layout viewport */
+  height: 100%;
+  height: 100dvh;
+  width: 100%;
+  width: 100dvw;
+  max-width: 100%;
+  padding: 0;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
-/* Modal full-screen mobile */
+.modal-panel {
+  position: relative;
+  background: #fff;
+  border: 1.5px solid #000;
+  border-radius: 24px;
+  width: 96%;
+  max-width: 1150px;
+  max-height: 92vh;
+  max-height: 92dvh;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  box-shadow: 0 20px 60px -12px rgba(0, 0, 0, 0.25);
+}
+
+/* ── Android / mobile full-screen modal (≤768px) ─────────── */
 @media (max-width: 768px) {
+  body {
+    font-size: 14px;
+  }
+
+  .modal-overlay {
+    padding: 0 !important;
+    align-items: stretch !important;
+    justify-content: stretch !important;
+    /* Cover browser chrome / address bar */
+    min-height: 100%;
+    min-height: 100dvh;
+    min-height: -webkit-fill-available;
+  }
+
   .modal-panel {
+    width: 100% !important;
     width: 100vw !important;
-    height: 100vh !important;
+    width: 100dvw !important;
+    max-width: 100% !important;
     max-width: 100vw !important;
+    height: 100% !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    height: -webkit-fill-available !important;
+    max-height: 100% !important;
+    max-height: 100vh !important;
+    max-height: 100dvh !important;
+    max-height: -webkit-fill-available !important;
     border-radius: 0 !important;
+    border-left: none !important;
+    border-right: none !important;
+    /* Safe areas for notched Android / gesture nav */
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+  }
+
+  /* Media column inside modal: constrain on short phones */
+  .modal-panel .modal-media {
+    min-height: 180px;
+    max-height: 42dvh;
+  }
+
+  /* Keep close button above system UI */
+  .modal-panel .modal-close {
+    top: max(0.75rem, env(safe-area-inset-top, 0.75rem));
+    right: max(0.75rem, env(safe-area-inset-right, 0.75rem));
+  }
+}
+
+/* Prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .animate-slide-up { animation: none; }
+  .escrow-secured { animation: none; }
+}
+
+/* Design-system utilities matching reference HTML */
+@layer components {
+  .tw-border { border: 1.5px solid #000; }
+  .tw-label {
+    @apply text-[11px] font-bold tracking-widest uppercase text-black/60;
+  }
+  .tw-pill {
+    @apply rounded-full border-[1.5px] border-black;
+  }
+  .tw-btn {
+    @apply h-12 rounded-full border-[1.5px] border-black font-semibold text-[14px] transition active:scale-[0.98];
+  }
+  .tw-btn-primary {
+    @apply tw-btn bg-[#0A13E6] text-white shadow-[0_4px_12px_rgba(10,19,230,0.3)] hover:bg-black;
+  }
+  .tw-btn-ghost {
+    @apply tw-btn bg-white text-black hover:bg-[#F5F3EF];
+  }
+  .tw-card {
+    @apply rounded-[20px] border-[1.5px] border-black bg-white shadow-sm;
+  }
+  .tw-input {
+    @apply w-full rounded-[14px] border-[1.5px] border-black/10 bg-white px-4 py-3 text-[14px] font-medium outline-none
+           focus:border-black/20 focus:ring-4 focus:ring-black/[0.04] placeholder:text-black/30;
   }
 }

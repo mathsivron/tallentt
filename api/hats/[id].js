@@ -1,6 +1,7 @@
 import { query } from '../_lib/db.js'
 import { getSessionUser } from '../_lib/auth.js'
 import { json, methodNotAllowed, readBody, isVerifiedName } from '../_lib/http.js'
+import { computeOrbitScore } from '../_lib/orbitScore.js'
 
 async function getHat(id) {
   const { rows } = await query(
@@ -13,7 +14,7 @@ async function getHat(id) {
     `SELECT id, hat_id, url, public_id, type FROM hat_media WHERE hat_id = $1`,
     [id],
   )
-  return { ...rows[0], media }
+  return { ...rows[0], media, confidence: rows[0].orbit_score }
 }
 
 export default async function handler(req, res) {
@@ -41,32 +42,64 @@ export default async function handler(req, res) {
       if (existing.user_id !== session.sub) return json(res, 403, { error: 'Forbidden' })
 
       const body = await readBody(req)
-      const verified = body.verified_name != null ? isVerifiedName(body.verified_name) : existing.is_verified
+      // Never accept username from client on update — keep account username
+      const verified =
+        body.verified_name != null ? isVerifiedName(body.verified_name) : existing.is_verified
 
-      const { rows } = await query(
+      const nextSkills = body.skills ?? existing.skills ?? []
+      const nextMotto = body.motto ?? existing.motto
+      const nextPrice = body.price_min != null ? Number(body.price_min) : existing.price_min
+      const nextAvail =
+        body.availability != null ? body.availability : existing.availability
+
+      let mediaCount = existing.media?.length || 0
+      if (Array.isArray(body.media)) {
+        await query(`DELETE FROM hat_media WHERE hat_id = $1`, [id])
+        for (const m of body.media) {
+          if (!m.url || !m.public_id) continue
+          await query(
+            `INSERT INTO hat_media (hat_id, url, public_id, type) VALUES ($1,$2,$3,$4)`,
+            [id, m.url, m.public_id, m.type || 'image'],
+          )
+        }
+        mediaCount = body.media.filter((m) => m.url && m.public_id).length
+      }
+
+      const orbitScore = computeOrbitScore({
+        mediaCount,
+        isVerified: verified,
+        skillsCount: Array.isArray(nextSkills) ? nextSkills.length : 0,
+        hasMotto: Boolean(nextMotto && String(nextMotto).trim()),
+        hasPrice: Number(nextPrice) > 0,
+        availability: nextAvail,
+        bookings: existing.bookings || 0,
+        likes: existing.likes || 0,
+        rating: existing.rating || 0,
+      })
+
+      await query(
         `UPDATE hats SET
           hat_title = COALESCE($1, hat_title),
-          username = COALESCE($2, username),
-          verified_name = COALESCE($3, verified_name),
-          is_verified = $4,
-          orbit = COALESCE($5, orbit),
-          skills = COALESCE($6, skills),
-          hat_type = COALESCE($7, hat_type),
-          country = COALESCE($8, country),
-          country_flag = COALESCE($9, country_flag),
-          currency = COALESCE($10, currency),
-          lga = COALESCE($11, lga),
-          motto = COALESCE($12, motto),
-          price_min = COALESCE($13, price_min),
-          price_max = COALESCE($14, price_max),
-          rate = COALESCE($15, rate),
-          availability = COALESCE($16, availability),
-          active = COALESCE($17, active),
-          role = COALESCE($18, role)
-        WHERE id = $19 RETURNING *`,
+          verified_name = COALESCE($2, verified_name),
+          is_verified = $3,
+          orbit = COALESCE($4, orbit),
+          skills = COALESCE($5, skills),
+          hat_type = COALESCE($6, hat_type),
+          country = COALESCE($7, country),
+          country_flag = COALESCE($8, country_flag),
+          currency = COALESCE($9, currency),
+          lga = COALESCE($10, lga),
+          motto = COALESCE($11, motto),
+          price_min = COALESCE($12, price_min),
+          price_max = COALESCE($13, price_max),
+          rate = COALESCE($14, rate),
+          availability = COALESCE($15, availability),
+          active = COALESCE($16, active),
+          role = COALESCE($17, role),
+          orbit_score = $18
+        WHERE id = $19`,
         [
           body.hat_title ?? null,
-          body.username ?? null,
           body.verified_name ?? null,
           verified,
           body.orbit ?? null,
@@ -83,20 +116,10 @@ export default async function handler(req, res) {
           body.availability ?? null,
           body.active ?? null,
           body.role ?? null,
+          orbitScore,
           id,
         ],
       )
-
-      if (Array.isArray(body.media)) {
-        await query(`DELETE FROM hat_media WHERE hat_id = $1`, [id])
-        for (const m of body.media) {
-          if (!m.url || !m.public_id) continue
-          await query(
-            `INSERT INTO hat_media (hat_id, url, public_id, type) VALUES ($1,$2,$3,$4)`,
-            [id, m.url, m.public_id, m.type || 'image'],
-          )
-        }
-      }
 
       const hat = await getHat(id)
       return json(res, 200, { hat })

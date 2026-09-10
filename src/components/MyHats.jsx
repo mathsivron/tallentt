@@ -24,7 +24,9 @@ export default function MyHats() {
         if (!cancelled) setLoading(false)
       }
     })()
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+    }
   }, [user?.id])
 
   function setMode(m) {
@@ -42,30 +44,41 @@ export default function MyHats() {
     }
   }
 
-  if (loading) return <p className="text-center text-gray-500 py-12">Loading your hats…</p>
+  if (loading) {
+    return <p className="text-center text-black/40 py-16 text-[13px] font-medium">Loading your hats…</p>
+  }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">My Hats</h1>
+    <div className="space-y-5">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div>
+          <h1 className="text-[22px] font-bold tracking-tight">My Hats</h1>
+          <p className="text-[12px] text-black/50 font-medium mt-0.5">{hats.length} hat{hats.length !== 1 ? 's' : ''}</p>
+        </div>
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setMode('grid')}
-            className={`p-2 rounded-lg ${viewMode === 'grid' ? 'bg-[#0A13E6] text-white' : 'bg-gray-100'}`}
-          >
-            <LayoutGrid size={18} />
-          </button>
-          <button
-            type="button"
-            onClick={() => setMode('list')}
-            className={`p-2 rounded-lg ${viewMode === 'list' ? 'bg-[#0A13E6] text-white' : 'bg-gray-100'}`}
-          >
-            <List size={18} />
-          </button>
+          <div className="flex rounded-full bg-white border-[1.5px] border-black p-0.5">
+            <button
+              type="button"
+              onClick={() => setMode('grid')}
+              className={`w-9 h-9 rounded-full flex items-center justify-center transition ${
+                viewMode === 'grid' ? 'bg-[#0A13E6] text-white' : 'text-black/50'
+              }`}
+            >
+              <LayoutGrid size={16} />
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode('list')}
+              className={`w-9 h-9 rounded-full flex items-center justify-center transition ${
+                viewMode === 'list' ? 'bg-[#0A13E6] text-white' : 'text-black/50'
+              }`}
+            >
+              <List size={16} />
+            </button>
+          </div>
           <Link
             to="/create"
-            className="ml-2 px-4 py-2 rounded-xl bg-[#0A13E6] text-white text-sm font-medium hover:bg-[#080fb8]"
+            className="h-10 px-5 rounded-full bg-[#0A13E6] text-white text-[13px] font-semibold border-[1.5px] border-black shadow-[0_4px_12px_rgba(10,19,230,0.25)] hover:bg-black transition flex items-center"
           >
             + New Hat
           </Link>
@@ -73,9 +86,12 @@ export default function MyHats() {
       </div>
 
       {hats.length === 0 ? (
-        <div className="text-center py-16 bg-white rounded-2xl border border-dashed border-gray-300">
-          <p className="text-gray-500 mb-4">You haven’t created any hats yet.</p>
-          <Link to="/create" className="inline-block px-5 py-2.5 rounded-xl bg-[#0A13E6] text-white font-medium">
+        <div className="text-center py-16 bg-white rounded-[24px] border-[1.5px] border-dashed border-black/20">
+          <p className="text-black/50 mb-4 text-[13px] font-medium">You haven’t created any hats yet.</p>
+          <Link
+            to="/create"
+            className="inline-flex h-11 px-6 rounded-full bg-[#0A13E6] text-white font-semibold text-[13px] border-[1.5px] border-black items-center"
+          >
             Create your first Hat
           </Link>
         </div>
@@ -84,36 +100,50 @@ export default function MyHats() {
           {hats.map((h) => (
             <div key={h.id} className="relative group">
               <BentoCard hat={h} />
-              <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition">
-                <Link to={`/create?edit=${h.id}`} className="p-1.5 bg-white rounded-lg shadow border">
-                  <Pencil size={14} />
+              <div className="absolute top-3 right-3 flex gap-1.5 opacity-0 group-hover:opacity-100 transition">
+                <Link
+                  to={`/create?edit=${h.id}`}
+                  className="w-8 h-8 bg-white rounded-full shadow border-[1.5px] border-black flex items-center justify-center hover:bg-black hover:text-white transition"
+                >
+                  <Pencil size={13} />
                 </Link>
-                <button type="button" onClick={() => handleDelete(h.id)} className="p-1.5 bg-white rounded-lg shadow border text-red-600">
-                  <Trash2 size={14} />
+                <button
+                  type="button"
+                  onClick={() => handleDelete(h.id)}
+                  className="w-8 h-8 bg-white rounded-full shadow border-[1.5px] border-black flex items-center justify-center text-red-600 hover:bg-red-600 hover:text-white transition"
+                >
+                  <Trash2 size={13} />
                 </button>
               </div>
             </div>
           ))}
         </div>
       ) : (
-        <ul className="bg-white rounded-2xl border divide-y">
+        <ul className="bg-white rounded-[20px] border-[1.5px] border-black divide-y divide-black/10 overflow-hidden">
           {hats.map((h) => (
-            <li key={h.id} className="flex items-center gap-4 p-4">
-              <div className="w-12 h-12 rounded-lg bg-gray-100 overflow-hidden shrink-0">
+            <li key={h.id} className="flex items-center gap-4 p-4 hover:bg-[#F5F3EF]/50 transition">
+              <div className="w-12 h-12 rounded-[12px] bg-[#F5F3EF] overflow-hidden shrink-0 border-[1.5px] border-black/10">
                 {h.media?.[0]?.url && <img src={h.media[0].url} alt="" className="w-full h-full object-cover" />}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="font-semibold truncate">{h.hat_title}</p>
-                <p className="text-sm text-gray-500">
+                <p className="font-semibold text-[14px] truncate">{h.hat_title}</p>
+                <p className="text-[12px] text-black/50">
                   {h.username} · {h.orbit} · {h.role}
                 </p>
               </div>
-              <span className="text-sm font-medium">₦{(h.price_min || 0).toLocaleString()}</span>
-              <Link to={`/create?edit=${h.id}`} className="p-2 text-gray-500 hover:text-[#0A13E6]">
-                <Pencil size={16} />
+              <span className="text-[13px] font-bold">₦{(h.price_min || 0).toLocaleString()}</span>
+              <Link
+                to={`/create?edit=${h.id}`}
+                className="w-9 h-9 rounded-full border-[1.5px] border-black/10 flex items-center justify-center text-black/50 hover:border-black hover:text-black transition"
+              >
+                <Pencil size={14} />
               </Link>
-              <button type="button" onClick={() => handleDelete(h.id)} className="p-2 text-gray-500 hover:text-red-600">
-                <Trash2 size={16} />
+              <button
+                type="button"
+                onClick={() => handleDelete(h.id)}
+                className="w-9 h-9 rounded-full border-[1.5px] border-black/10 flex items-center justify-center text-black/50 hover:border-red-500 hover:text-red-600 transition"
+              >
+                <Trash2 size={14} />
               </button>
             </li>
           ))}

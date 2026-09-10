@@ -22,6 +22,7 @@ export const api = {
   register: (body) => request('/api/auth/register', { method: 'POST', body: JSON.stringify(body) }),
   login: (body) => request('/api/auth/login', { method: 'POST', body: JSON.stringify(body) }),
   logout: () => request('/api/auth/logout', { method: 'POST' }),
+  usernameCheck: (u) => request(`/api/auth/username-check?u=${encodeURIComponent(u)}`),
 
   // Hats
   getHats: (params = {}) => {

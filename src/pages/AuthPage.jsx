@@ -1,433 +1,449 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Eye, EyeOff } from 'lucide-react'
 import { useAuth } from '../context/AuthContext.jsx'
+import { api } from '../lib/api.js'
 import '../styles/auth.css'
 
-const ROLE_TITLES = { talent: 'Talent', client: 'Client', dual: 'Dual' }
+const CATEGORIES = [
+  'Music',
+  'Dance',
+  'Comedy',
+  'Fashion',
+  'Acting',
+  'Modeling',
+  'Art & Design',
+  'Writing',
+  'Photography',
+  'Content Creation',
+  'Sports',
+  'Other',
+]
 
-const STEP_META = {
-  signIn: { step: 'Welcome back', progress: 0, showProgress: false },
-  role: { step: 'Step 1 of 2', progress: 48, showProgress: true },
-  details: { step: 'Step 2 of 2', progress: 100, showProgress: true },
-  complete: { step: 'Account created', progress: 100, showProgress: true },
+const LEGAL = {
+  terms: {
+    title: 'Terms of Service',
+    body: 'TalentWorld provides a marketplace for talent to showcase skills and for clients to discover and book them. You must be 18+ or have guardian consent. You own your content. Escrow funds are released in full to talent on confirmed delivery — TalentWorld takes no platform fee in this phase.',
+  },
+  privacy: {
+    title: 'Privacy Policy',
+    body: 'We store account details (name, username, email, role, location) to operate the marketplace. We do not sell your personal data. Session cookies are httpOnly JWTs. You may request account deletion by contacting support.',
+  },
+  vendor: {
+    title: 'Vendor Affiliate Agreement',
+    body: 'As a talent or vendor affiliate you agree not to copy others’ products, not to spam, and to accurately represent your work. Affiliate earnings linked to your talent are paid 100% to you in this phase (no platform commission). Violations may result in suspension.',
+  },
+  cookie: {
+    title: 'Cookie Policy',
+    body: 'We use essential session cookies to keep you signed in. We do not use third-party advertising cookies in this build.',
+  },
 }
 
 export default function AuthPage() {
   const { login, register } = useAuth()
   const navigate = useNavigate()
 
-  const [view, setView] = useState('signIn')
-  const [selectedRole, setSelectedRole] = useState('dual')
+  const [mode, setMode] = useState('signup') // signup | login
   const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+  const [legalKey, setLegalKey] = useState(null)
+  const [socialNote, setSocialNote] = useState(null)
 
-  const [signInForm, setSignInForm] = useState({ email: '', password: '' })
-  const [signInError, setSignInError] = useState('')
-  const [showSignInPassword, setShowSignInPassword] = useState(false)
+  // Signup
+  const [fullName, setFullName] = useState('')
+  const [username, setUsername] = useState('')
+  const [userStatus, setUserStatus] = useState(null) // checking | available | taken | invalid
+  const [email, setEmail] = useState('')
+  const [category, setCategory] = useState('')
+  const [password, setPassword] = useState('')
+  const [confirm, setConfirm] = useState('')
+  const [showPass, setShowPass] = useState(false)
+  const [showConfirm, setShowConfirm] = useState(false)
+  const [agreed, setAgreed] = useState(false)
 
-  const [detailsForm, setDetailsForm] = useState({
-    fullName: '',
-    username: '',
-    email: '',
-    country: '',
-    lga: '',
-    password: '',
-  })
-  const [detailsError, setDetailsError] = useState('')
-  const [showNewPassword, setShowNewPassword] = useState(false)
-  const [createdUser, setCreatedUser] = useState(null)
+  // Login
+  const [loginId, setLoginId] = useState('')
+  const [loginPass, setLoginPass] = useState('')
+  const [showLoginPass, setShowLoginPass] = useState(false)
 
-  // Signup policy popup — shown after the details form validates, before the
-  // account is actually created. Disagreeing cancels the signup entirely.
-  const [showPolicy, setShowPolicy] = useState(false)
-  const [policyError, setPolicyError] = useState('')
+  const debounceRef = useRef(null)
 
-  const meta = STEP_META[view]
-
-  async function handleSignIn(e) {
-    e.preventDefault()
-    setSignInError('')
-    setSubmitting(true)
-    try {
-      await login({ email: signInForm.email.trim(), password: signInForm.password })
-      navigate('/', { replace: true })
-    } catch (err) {
-      setSignInError(err.message)
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  function handleDetailsSubmit(e) {
-    e.preventDefault()
-    setDetailsError('')
-
-    const username = detailsForm.username.trim().replace(/^@/, '')
-    if (!/^[A-Za-z0-9._-]{3,}$/.test(username)) {
-      setDetailsError('Username must be at least 3 characters (letters, numbers, dots, dashes, underscores).')
+  useEffect(() => {
+    const u = username.trim().replace(/^@/, '')
+    if (!u) {
+      setUserStatus(null)
       return
     }
-    if (detailsForm.password.length < 8) {
-      setDetailsError('Password must be at least 8 characters.')
+    setUserStatus('checking')
+    clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const data = await api.usernameCheck(u)
+        setUserStatus(data.status)
+      } catch {
+        setUserStatus('invalid')
+      }
+    }, 600)
+    return () => clearTimeout(debounceRef.current)
+  }, [username])
+
+  function switchMode(next) {
+    setMode(next)
+    setError('')
+    setSuccess('')
+  }
+
+  async function handleSignup(e) {
+    e.preventDefault()
+    setError('')
+    setSuccess('')
+
+    const u = username.trim().replace(/^@/, '')
+    if (!fullName.trim() || fullName.trim().length < 2) {
+      setError('Enter your full name.')
+      return
+    }
+    if (userStatus !== 'available') {
+      setError(userStatus === 'taken' ? 'That username is taken.' : 'Choose an available username.')
+      return
+    }
+    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setError('Enter a valid email address.')
+      return
+    }
+    if (!category) {
+      setError('Select a talent category.')
+      return
+    }
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters.')
+      return
+    }
+    if (password !== confirm) {
+      setError('Passwords do not match.')
+      return
+    }
+    if (!agreed) {
+      setError('You must agree to the Affiliate Marketing Terms and Vendor Affiliate Agreement.')
       return
     }
 
-    // Details are valid — show the signup policy before actually creating the account.
-    setPolicyError('')
-    setShowPolicy(true)
-  }
-
-  async function handlePolicyAgree() {
-    setPolicyError('')
     setSubmitting(true)
     try {
-      const username = detailsForm.username.trim().replace(/^@/, '')
-      const user = await register({
-        fullName: detailsForm.fullName.trim(),
-        username,
-        email: detailsForm.email.trim(),
-        country: detailsForm.country,
-        lga: detailsForm.lga.trim(),
-        password: detailsForm.password,
-        role: selectedRole,
+      await register({
+        fullName: fullName.trim(),
+        username: u,
+        email: email.trim(),
+        password,
+        role: 'dual',
+        country: 'Nigeria',
+        lga: category, // store category until dedicated column exists
       })
-      setShowPolicy(false)
-      setCreatedUser(user)
-      setView('complete')
+      setSuccess('Welcome — Your spotlight is live')
+      setTimeout(() => navigate('/', { replace: true }), 900)
     } catch (err) {
-      // Keep the modal open and surface the error there, so the person doesn't
-      // lose the fact that they already agreed.
-      setPolicyError(err.message)
+      setError(err.message || 'Could not create account.')
     } finally {
       setSubmitting(false)
     }
   }
 
-  function handlePolicyDisagree() {
-    setShowPolicy(false)
-    setPolicyError('')
-    setDetailsError('You need to agree to the signup policy to create a TalentWorld account.')
+  async function handleLogin(e) {
+    e.preventDefault()
+    setError('')
+    setSuccess('')
+    if (!loginId.trim() || !loginPass) {
+      setError('Enter your email and password.')
+      return
+    }
+    setSubmitting(true)
+    try {
+      await login({ email: loginId.trim(), password: loginPass })
+      setSuccess('Welcome back — you are signed in.')
+      setTimeout(() => navigate('/', { replace: true }), 700)
+    } catch (err) {
+      setError(err.message || 'Could not sign in.')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
-    <main className="shell">
-      <aside className="brand-panel">
-        <div className="logo">
-          <span className="logo-mark">T</span>TalentWorld
+    <main className="v9-shell">
+      <div className="v9-logo" aria-label="TalentWorld">
+        <div className="v9-logo-circle" aria-hidden>
+          <div className="v9-logo-arrow" />
         </div>
-        <section className="hero">
-          <div className="eyebrow">Built for how work really works</div>
-          <h1>Own your spotlight.</h1>
-          <p>
-            One account to create, hire, and grow. Move between your Talent and Client worlds
-            whenever you need to.
-          </p>
-          <div className="role-preview">
-            <div className="preview-card">
-              <b>✦ Talent</b>
-              <span>Show your craft. Find work.</span>
-            </div>
-            <div className="preview-card">
-              <b>▣ Client</b>
-              <span>Find talent. Build teams.</span>
-            </div>
-          </div>
-        </section>
-        <div className="trust">
-          <span className="dot" /> Secure profiles and escrow-ready workspaces
+        <div className="v9-logo-word">
+          Talent<span className="script-w">W</span>orld
         </div>
-      </aside>
+        <div className="v9-logo-tag">Own Your Spotlight</div>
+      </div>
 
-      <section className="auth-panel">
-        <div className="auth">
-          <div className="auth-top">
-            <div className="tiny-logo">TalentWorld</div>
-            <div className="step">{meta.step}</div>
+      <div className="v9-card">
+        <div className="v9-card-inner">
+          <div className="v9-switch" role="tablist">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mode === 'signup'}
+              className={mode === 'signup' ? 'active' : ''}
+              onClick={() => switchMode('signup')}
+            >
+              Sign Up
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mode === 'login'}
+              className={mode === 'login' ? 'active' : ''}
+              onClick={() => switchMode('login')}
+            >
+              Login
+            </button>
           </div>
 
-          {meta.showProgress && (
-            <div className="progress">
-              <b style={{ width: `${meta.progress}%` }} />
-            </div>
-          )}
+          {success && <div className="v9-success-banner">{success}</div>}
+          {error && <div className="v9-error">{error}</div>}
 
-          {view === 'signIn' && (
-            <div className="form-view active">
-              <h2>Welcome back.</h2>
-              <p className="sub">Sign in to pick up where you left off.</p>
-              <div className={`error ${signInError ? 'active' : ''}`}>{signInError}</div>
-              <form onSubmit={handleSignIn}>
-                <div className="field">
-                  <label htmlFor="loginEmail">Email address</label>
-                  <input
-                    required
-                    id="loginEmail"
-                    type="email"
-                    autoComplete="email"
-                    placeholder="you@example.com"
-                    value={signInForm.email}
-                    onChange={(e) => setSignInForm((f) => ({ ...f, email: e.target.value }))}
-                  />
-                </div>
-                <div className="field password">
-                  <label htmlFor="loginPassword">Password</label>
-                  <input
-                    required
-                    id="loginPassword"
-                    type={showSignInPassword ? 'text' : 'password'}
-                    minLength={8}
-                    autoComplete="current-password"
-                    placeholder="Enter your password"
-                    value={signInForm.password}
-                    onChange={(e) => setSignInForm((f) => ({ ...f, password: e.target.value }))}
-                  />
-                  <button type="button" onClick={() => setShowSignInPassword((v) => !v)}>
-                    {showSignInPassword ? 'Hide' : 'Show'}
-                  </button>
-                </div>
-                <button className="primary" type="submit" disabled={submitting}>
-                  {submitting ? 'Signing in…' : 'Sign in to TalentWorld'}
-                </button>
-              </form>
-              <p className="terms">
-                New to TalentWorld?{' '}
-                <button className="link" type="button" onClick={() => setView('role')}>
-                  Create your account
-                </button>
-              </p>
-            </div>
-          )}
+          {mode === 'signup' ? (
+            <form onSubmit={handleSignup} noValidate>
+              <h1 className="v9-title">Create your spotlight</h1>
+              <p className="v9-sub">Join TalentWorld and own your stage.</p>
 
-          {view === 'role' && (
-            <div className="form-view active">
-              <h2>
-                How will you use
-                <br />
-                TalentWorld?
-              </h2>
-              <p className="sub">
-                Choose your starting role. A Dual account gives you both worlds from day one.
-              </p>
-              <div className="roles">
-                <button
-                  type="button"
-                  className={`role ${selectedRole === 'talent' ? 'selected' : ''}`}
-                  onClick={() => setSelectedRole('talent')}
-                >
-                  <span className="icon">✦</span>
-                  <b>Talent</b>
-                  <small>I want to showcase my skills and find work.</small>
-                  <i className="check">✓</i>
-                </button>
-                <button
-                  type="button"
-                  className={`role ${selectedRole === 'client' ? 'selected' : ''}`}
-                  onClick={() => setSelectedRole('client')}
-                >
-                  <span className="icon">▣</span>
-                  <b>Client</b>
-                  <small>I want to find talent and post opportunities.</small>
-                  <i className="check">✓</i>
-                </button>
-                <button
-                  type="button"
-                  className={`role dual ${selectedRole === 'dual' ? 'selected' : ''}`}
-                  onClick={() => setSelectedRole('dual')}
-                >
-                  <span className="icon">◈</span>
-                  <span>
-                    <b>Dual account</b>
-                    <small>Work as Talent and hire as Client with the same account.</small>
-                  </span>
-                  <i className="check">✓</i>
-                </button>
+              <div className="v9-field">
+                <label htmlFor="fullName">Full name</label>
+                <input
+                  id="fullName"
+                  placeholder="Alex Morgan"
+                  autoComplete="name"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  required
+                />
               </div>
-              <div className="note">
-                <span>↔</span>
-                <span>
-                  <b>You can switch anytime.</b> Your browsing role is saved so your feed always
-                  opens the way you last used it.
-                </span>
-              </div>
-              <button className="primary" type="button" onClick={() => setView('details')}>
-                Continue
-              </button>
-              <p className="terms">
-                Already have an account?{' '}
-                <button className="link" type="button" onClick={() => setView('signIn')}>
-                  Sign in
-                </button>
-              </p>
-            </div>
-          )}
 
-          {view === 'details' && (
-            <div className="form-view active">
-              <h2>Make it yours.</h2>
-              <p className="sub">Set up your secure TalentWorld account.</p>
-              <div className={`error ${detailsError ? 'active' : ''}`}>{detailsError}</div>
-              <form onSubmit={handleDetailsSubmit}>
-                <div className="field-row">
-                  <div className="field">
-                    <label htmlFor="fullName">Full name</label>
-                    <input
-                      required
-                      id="fullName"
-                      autoComplete="name"
-                      placeholder="Your name"
-                      value={detailsForm.fullName}
-                      onChange={(e) => setDetailsForm((f) => ({ ...f, fullName: e.target.value }))}
-                    />
-                  </div>
-                  <div className="field">
-                    <label htmlFor="username">Username</label>
-                    <input
-                      required
-                      id="username"
-                      placeholder="@yourname"
-                      value={detailsForm.username}
-                      onChange={(e) => setDetailsForm((f) => ({ ...f, username: e.target.value }))}
-                    />
-                  </div>
-                </div>
-                <div className="field">
-                  <label htmlFor="email">Email address</label>
+              <div className="v9-field">
+                <label htmlFor="username">Username</label>
+                <div className="v9-username">
+                  <span className="prefix">@</span>
                   <input
+                    id="username"
+                    placeholder="amara_dance"
+                    autoComplete="username"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value.replace(/\s/g, ''))}
                     required
-                    id="email"
-                    type="email"
-                    autoComplete="email"
-                    placeholder="you@example.com"
-                    value={detailsForm.email}
-                    onChange={(e) => setDetailsForm((f) => ({ ...f, email: e.target.value }))}
                   />
+                  {userStatus && (
+                    <span className={`v9-pill ${userStatus}`}>
+                      {userStatus === 'checking' && 'Checking...'}
+                      {userStatus === 'available' && 'Available'}
+                      {userStatus === 'taken' && 'Taken'}
+                      {userStatus === 'invalid' && 'Invalid'}
+                    </span>
+                  )}
                 </div>
-                <div className="field-row">
-                  <div className="field">
-                    <label htmlFor="country">Country</label>
-                    <select
-                      required
-                      id="country"
-                      value={detailsForm.country}
-                      onChange={(e) => setDetailsForm((f) => ({ ...f, country: e.target.value }))}
-                    >
-                      <option value="">Select country</option>
-                      <option>Nigeria</option>
-                      <option>Ghana</option>
-                      <option>Kenya</option>
-                      <option>United Kingdom</option>
-                      <option>United States</option>
-                      <option>Other</option>
-                    </select>
-                  </div>
-                  <div className="field">
-                    <label htmlFor="lga">City / LGA</label>
-                    <input
-                      required
-                      id="lga"
-                      placeholder="e.g. Yaba"
-                      value={detailsForm.lga}
-                      onChange={(e) => setDetailsForm((f) => ({ ...f, lga: e.target.value }))}
-                    />
-                  </div>
-                </div>
-                <div className="field password">
-                  <label htmlFor="newPassword">Create password</label>
+              </div>
+
+              <div className="v9-field">
+                <label htmlFor="email">Email</label>
+                <input
+                  id="email"
+                  type="email"
+                  placeholder="you@example.com"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="v9-field">
+                <label htmlFor="category">Talent category</label>
+                <select
+                  id="category"
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  required
+                >
+                  <option value="">Select category</option>
+                  {CATEGORIES.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="v9-field">
+                <label htmlFor="password">Password</label>
+                <div className="v9-pass-wrap">
                   <input
-                    required
-                    id="newPassword"
-                    type={showNewPassword ? 'text' : 'password'}
-                    minLength={8}
-                    autoComplete="new-password"
+                    id="password"
+                    type={showPass ? 'text' : 'password'}
                     placeholder="At least 8 characters"
-                    value={detailsForm.password}
-                    onChange={(e) => setDetailsForm((f) => ({ ...f, password: e.target.value }))}
+                    autoComplete="new-password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    minLength={8}
                   />
-                  <button type="button" onClick={() => setShowNewPassword((v) => !v)}>
-                    {showNewPassword ? 'Hide' : 'Show'}
+                  <button type="button" className="eye" onClick={() => setShowPass((v) => !v)} aria-label="Toggle password">
+                    {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
-                <div className="note">
-                  <span>🔒</span>
-                  <span>
-                    Your profile is protected. You will choose a <b>Talent or Client hat</b>{' '}
-                    after creating your account.
-                  </span>
-                </div>
-                <button className="primary" type="submit" disabled={submitting}>
-                  Continue to signup policy
-                </button>
-              </form>
-              <button className="back" type="button" onClick={() => setView('role')}>
-                ← Back to role selection
-              </button>
-            </div>
-          )}
+              </div>
 
-          {view === 'complete' && createdUser && (
-            <div className="form-view active">
-              <div className="success active">
-                <div className="success-ring">✓</div>
-                <h2>You are in.</h2>
-                <p className="sub">
-                  Your {ROLE_TITLES[createdUser.role] ?? 'Dual'} account is ready. Choose which
-                  world to explore first.
-                </p>
-                <div className="account-card">
-                  <b>
-                    {createdUser.fullName} · @{createdUser.username}
-                  </b>
-                  <span>
-                    {createdUser.lga}, {createdUser.country} · {ROLE_TITLES[createdUser.role] ?? 'Dual'}{' '}
-                    account
-                  </span>
+              <div className="v9-field">
+                <label htmlFor="confirm">Confirm password</label>
+                <div className="v9-pass-wrap">
+                  <input
+                    id="confirm"
+                    type={showConfirm ? 'text' : 'password'}
+                    placeholder="Re-enter password"
+                    autoComplete="new-password"
+                    value={confirm}
+                    onChange={(e) => setConfirm(e.target.value)}
+                    required
+                    minLength={8}
+                  />
+                  <button type="button" className="eye" onClick={() => setShowConfirm((v) => !v)} aria-label="Toggle confirm password">
+                    {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
                 </div>
-                <button className="primary" type="button" onClick={() => navigate('/', { replace: true })}>
-                  Go to my workspace
+                {confirm && password !== confirm && (
+                  <p style={{ margin: '6px 0 0', fontSize: 12, color: '#b91c1c', fontWeight: 600 }}>
+                    Passwords do not match
+                  </p>
+                )}
+              </div>
+
+              <label className="v9-check">
+                <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
+                <span>
+                  I agree to{' '}
+                  <a href="#vendor" onClick={(e) => { e.preventDefault(); setLegalKey('vendor') }}>
+                    Affiliate Marketing Terms
+                  </a>{' '}
+                  and{' '}
+                  <a href="#vendor" onClick={(e) => { e.preventDefault(); setLegalKey('vendor') }}>
+                    Vendor Affiliate Agreement
+                  </a>
+                  . I will not copy products or use spam.
+                </span>
+              </label>
+
+              <button className="v9-cta" type="submit" disabled={submitting}>
+                {submitting ? 'Creating…' : 'Create Account — Own Your Spotlight'}
+              </button>
+
+              <p className="v9-helper">
+                Already have an account?{' '}
+                <button type="button" onClick={() => switchMode('login')}>
+                  Login
+                </button>
+              </p>
+            </form>
+          ) : (
+            <form onSubmit={handleLogin} noValidate>
+              <h1 className="v9-title">Welcome back</h1>
+              <p className="v9-sub">Own your spotlight. Sign in to continue.</p>
+
+              <div className="v9-field">
+                <label htmlFor="loginEmail">Email</label>
+                <input
+                  id="loginEmail"
+                  type="email"
+                  placeholder="you@example.com"
+                  autoComplete="email"
+                  value={loginId}
+                  onChange={(e) => setLoginId(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="v9-field">
+                <label htmlFor="loginPassword">Password</label>
+                <div className="v9-pass-wrap">
+                  <input
+                    id="loginPassword"
+                    type={showLoginPass ? 'text' : 'password'}
+                    placeholder="Enter your password"
+                    autoComplete="current-password"
+                    value={loginPass}
+                    onChange={(e) => setLoginPass(e.target.value)}
+                    required
+                  />
+                  <button type="button" className="eye" onClick={() => setShowLoginPass((v) => !v)} aria-label="Toggle password">
+                    {showLoginPass ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="v9-forgot">
+                <button type="button" onClick={() => setSocialNote('Password reset is coming soon. Contact support if locked out.')}>
+                  Forgot password?
                 </button>
               </div>
-            </div>
+
+              <button className="v9-cta" type="submit" disabled={submitting}>
+                {submitting ? 'Signing in…' : 'Login — Own Your Spotlight'}
+              </button>
+
+              <div className="v9-or">Or continue with</div>
+              <div className="v9-social">
+                <button type="button" onClick={() => setSocialNote('Google sign-in is coming soon.')}>
+                  <span style={{ color: '#4285f4', fontWeight: 900 }}>G</span> Google
+                </button>
+                <button type="button" onClick={() => setSocialNote('Apple sign-in is coming soon.')}>
+                  <span aria-hidden></span> Apple
+                </button>
+              </div>
+
+              <p className="v9-helper">
+                New to TalentWorld?{' '}
+                <button type="button" onClick={() => switchMode('signup')}>
+                  Create account
+                </button>
+              </p>
+            </form>
           )}
         </div>
-      </section>
 
-      {showPolicy && (
-        <div className="policy-overlay" role="dialog" aria-modal="true" aria-labelledby="policyTitle">
-          <div className="policy-modal">
-            <h3 id="policyTitle">TalentWorld signup policy</h3>
-            <div className="policy-body">
-              <p>Before you create your account, please review and agree to the following:</p>
-              <ul>
-                <li>
-                  <b>Escrow &amp; payments.</b> Funds you send to secure a booking are held until you
-                  confirm delivery, then released in full to the Talent — TalentWorld does not take a
-                  fee.
-                </li>
-                <li>
-                  <b>Keep contact off-platform sharing to a minimum before booking.</b> Messages that
-                  try to move a conversation off TalentWorld before a booking is secured (phone
-                  numbers, WhatsApp, "DM me", etc.) may be automatically masked.
-                </li>
-                <li>
-                  <b>Honesty in your profile.</b> Your hat title, verification claims, and portfolio
-                  must accurately represent your work.
-                </li>
-                <li>
-                  <b>Respectful conduct.</b> Harassment, discrimination, or abusive behaviour toward
-                  other members is not tolerated and may result in account removal.
-                </li>
-                <li>
-                  <b>Data use.</b> We store your profile details to operate TalentWorld's marketplace
-                  features (discovery, bookings, escrow) and will not sell your data to third parties.
-                </li>
-              </ul>
-            </div>
-            {policyError && <div className="error active">{policyError}</div>}
-            <div className="policy-actions">
-              <button type="button" className="policy-disagree" onClick={handlePolicyDisagree} disabled={submitting}>
-                Disagree
+        <div className="v9-card-footer">
+          <button type="button" onClick={() => setLegalKey('terms')}>Terms of Service</button>
+          <button type="button" onClick={() => setLegalKey('privacy')}>Privacy Policy</button>
+          <button type="button" onClick={() => setLegalKey('vendor')}>Vendor Affiliate Agreement</button>
+          <button type="button" onClick={() => setLegalKey('cookie')}>Cookie Policy</button>
+        </div>
+      </div>
+
+      <p className="v9-outside-footer">© 2026 TalentWorld • Own Your Spotlight • signup V9</p>
+
+      {legalKey && LEGAL[legalKey] && (
+        <div className="v9-modal-overlay" role="dialog" aria-modal="true" onClick={() => setLegalKey(null)}>
+          <div className="v9-modal" onClick={(e) => e.stopPropagation()}>
+            <h3>{LEGAL[legalKey].title}</h3>
+            <p>{LEGAL[legalKey].body}</p>
+            <div className="close-row">
+              <button type="button" onClick={() => setLegalKey(null)}>
+                Close
               </button>
-              <button type="button" className="policy-agree" onClick={handlePolicyAgree} disabled={submitting}>
-                {submitting ? 'Creating account…' : 'Agree & create account'}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {socialNote && (
+        <div className="v9-modal-overlay" role="dialog" aria-modal="true" onClick={() => setSocialNote(null)}>
+          <div className="v9-modal" onClick={(e) => e.stopPropagation()}>
+            <h3>Coming soon</h3>
+            <p>{socialNote}</p>
+            <div className="close-row">
+              <button type="button" onClick={() => setSocialNote(null)}>
+                OK
               </button>
             </div>
           </div>
