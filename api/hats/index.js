@@ -65,7 +65,7 @@ export default async function handler(req, res) {
 
       const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : ''
       const { rows } = await query(
-        `SELECT h.*, u.full_name as owner_name, u.avatar_url as owner_avatar
+        `SELECT h.*, u.avatar_url as owner_avatar
          FROM hats h
          LEFT JOIN users u ON u.id = h.user_id
          ${where}

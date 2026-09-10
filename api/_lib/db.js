@@ -23,3 +23,10 @@ if (!pool) {
 export function query(text, params) {
   return pool.query(text, params)
 }
+
+// Checks out a dedicated client for multi-statement transactions (e.g.
+// updating a user's username and cascading it to their hats atomically).
+// Callers must always release() the client, even on error.
+export function getClient() {
+  return pool.connect()
+}

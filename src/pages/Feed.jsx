@@ -75,7 +75,7 @@ export default function Feed() {
       ) : (
         <div className="hats-grid">
           {hats.map((h) => (
-            <BentoCard key={h.id} hat={h} onBook={handleBook} onApply={handleApply} />
+            <BentoCard key={h.id} hat={h} onBook={handleBook} onApply={handleApply} showMedia={false} />
           ))}
         </div>
       )}

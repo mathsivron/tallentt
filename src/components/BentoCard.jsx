@@ -41,7 +41,7 @@ function Avatar({ src, name, className = 'w-12 h-12' }) {
   )
 }
 
-export default function BentoCard({ hat, onBook, onApply, escrow }) {
+export default function BentoCard({ hat, onBook, onApply, escrow, showMedia = true }) {
   const [open, setOpen] = useState(false)
 
   // Lock body scroll on Android/iOS while modal is open
@@ -75,36 +75,38 @@ export default function BentoCard({ hat, onBook, onApply, escrow }) {
         onClick={() => setOpen(true)}
       >
         {/* Media */}
-        <div className="relative aspect-[4/3] bg-[#F5F3EF]">
-          {media?.url ? (
-            media.type === 'video' ? (
-              <video src={media.url} className="w-full h-full object-cover" muted playsInline />
+        {showMedia && (
+          <div className="relative aspect-[4/3] bg-[#F5F3EF]">
+            {media?.url ? (
+              media.type === 'video' ? (
+                <video src={media.url} className="w-full h-full object-cover" muted playsInline />
+              ) : (
+                <img src={media.url} alt="" className="w-full h-full object-cover" loading="lazy" />
+              )
             ) : (
-              <img src={media.url} alt="" className="w-full h-full object-cover" loading="lazy" />
-            )
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-black/30 text-[12px] font-medium">
-              No media
-            </div>
-          )}
-          <span
-            className={`absolute top-2.5 left-2.5 ${pillBg} text-[10px] font-bold tracking-widest uppercase px-2.5 py-1 rounded-full border-[1.5px] border-black`}
-          >
-            {hat.hat_type || (isTalent ? 'Talent' : 'Client')}
-          </span>
-          {hat.availability && (
+              <div className="w-full h-full flex items-center justify-center text-black/30 text-[12px] font-medium">
+                No media
+              </div>
+            )}
             <span
-              className="absolute top-2.5 right-2.5 w-2.5 h-2.5 rounded-full bg-[#16C784] border-[1.5px] border-white"
-              title="Available"
-            />
-          )}
-        </div>
+              className={`absolute top-2.5 left-2.5 ${pillBg} text-[10px] font-bold tracking-widest uppercase px-2.5 py-1 rounded-full border-[1.5px] border-black`}
+            >
+              {hat.hat_type || (isTalent ? 'Talent' : 'Client')}
+            </span>
+            {hat.availability && (
+              <span
+                className="absolute top-2.5 right-2.5 w-2.5 h-2.5 rounded-full bg-[#16C784] border-[1.5px] border-white"
+                title="Available"
+              />
+            )}
+          </div>
+        )}
 
         {/* Body */}
         <div className="p-3.5 flex-1 flex flex-col gap-2">
           <div className="flex items-center gap-2.5">
             <Avatar src={hat.owner_avatar || hat.avatar_url} name={hat.username} className="w-11 h-11" />
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <p className="font-semibold text-[14px] truncate leading-tight flex items-center gap-1">
                 {hat.username}
                 {hat.is_verified && (
@@ -115,6 +117,18 @@ export default function BentoCard({ hat, onBook, onApply, escrow }) {
               </p>
               <p className="text-[12px] text-black/50 truncate">{hat.hat_title}</p>
             </div>
+            {!showMedia && (
+              <div className="flex items-center gap-1.5 shrink-0">
+                {hat.availability && (
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#16C784] border-[1.5px] border-white shadow-sm" title="Available" />
+                )}
+                <span
+                  className={`${pillBg} text-[9px] font-bold tracking-widest uppercase px-2 py-1 rounded-full border-[1.5px] border-black`}
+                >
+                  {hat.hat_type || (isTalent ? 'Talent' : 'Client')}
+                </span>
+              </div>
+            )}
           </div>
 
           {motto && <p className="text-[12px] text-black/70 leading-snug line-clamp-2 italic">"{motto}"</p>}
@@ -186,18 +200,20 @@ export default function BentoCard({ hat, onBook, onApply, escrow }) {
               <X size={16} />
             </button>
 
-            <div className="grid md:grid-cols-2 gap-0 min-h-0">
-              <div className="modal-media bg-[#F5F3EF] min-h-[240px] border-b-[1.5px] md:border-b-0 md:border-r-[1.5px] border-black">
-                {media?.url ? (
-                  media.type === 'video' ? (
-                    <video src={media.url} controls className="w-full h-full object-contain max-h-[70vh]" />
+            <div className={showMedia ? 'grid md:grid-cols-2 gap-0 min-h-0' : 'min-h-0'}>
+              {showMedia && (
+                <div className="modal-media bg-[#F5F3EF] min-h-[240px] border-b-[1.5px] md:border-b-0 md:border-r-[1.5px] border-black">
+                  {media?.url ? (
+                    media.type === 'video' ? (
+                      <video src={media.url} controls className="w-full h-full object-contain max-h-[70vh]" />
+                    ) : (
+                      <img src={media.url} alt="" className="w-full h-full object-contain max-h-[70vh]" />
+                    )
                   ) : (
-                    <img src={media.url} alt="" className="w-full h-full object-contain max-h-[70vh]" />
-                  )
-                ) : (
-                  <div className="flex items-center justify-center h-64 text-black/30 text-[13px]">No portfolio</div>
-                )}
-              </div>
+                    <div className="flex items-center justify-center h-64 text-black/30 text-[13px]">No portfolio</div>
+                  )}
+                </div>
+              )}
 
               <div className="p-5 md:p-6 space-y-4">
                 <div className="flex items-center gap-3">

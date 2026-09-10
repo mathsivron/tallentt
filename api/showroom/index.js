@@ -6,7 +6,7 @@ export default async function handler(req, res) {
 
   try {
     const { rows: hats } = await query(
-      `SELECT h.*, u.full_name as owner_name, u.avatar_url as owner_avatar
+      `SELECT h.*, u.avatar_url as owner_avatar
        FROM hats h
        LEFT JOIN users u ON u.id = h.user_id
        WHERE h.active = true AND h.role = 'talent'

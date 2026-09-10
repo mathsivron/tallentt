@@ -5,7 +5,7 @@ import { computeOrbitScore } from '../_lib/orbitScore.js'
 
 async function getHat(id) {
   const { rows } = await query(
-    `SELECT h.*, u.full_name as owner_name, u.avatar_url as owner_avatar
+    `SELECT h.*, u.avatar_url as owner_avatar
      FROM hats h LEFT JOIN users u ON u.id = h.user_id WHERE h.id = $1`,
     [id],
   )

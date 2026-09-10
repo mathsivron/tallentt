@@ -1,15 +1,16 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Camera, ShieldCheck } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
-import { uploadToCloudinary } from '../lib/api'
+import { api, uploadToCloudinary } from '../lib/api'
 
 const MAX_BIO = 280
 
 export default function Profile() {
   const { user, updateProfile } = useAuth()
   const [editing, setEditing] = useState(false)
-  const [fullName, setFullName] = useState(user?.fullName || '')
+  const [username, setUsername] = useState(user?.username || '')
+  const [usernameStatus, setUsernameStatus] = useState(null) // checking | available | taken | invalid | unchanged
   const [phone, setPhone] = useState(user?.phone || '')
   const [bio, setBio] = useState(user?.bio || '')
   const [location, setLocation] = useState(user?.location || '')
@@ -20,6 +21,31 @@ export default function Profile() {
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const usernameDebounce = useRef(null)
+
+  useEffect(() => {
+    const u = username.trim().replace(/^@/, '')
+    if (!editing || !u) {
+      setUsernameStatus(null)
+      return
+    }
+    if (u.toLowerCase() === (user?.username || '').toLowerCase()) {
+      setUsernameStatus('unchanged')
+      return
+    }
+    setUsernameStatus('checking')
+    clearTimeout(usernameDebounce.current)
+    usernameDebounce.current = setTimeout(async () => {
+      try {
+        const data = await api.usernameCheck(u)
+        setUsernameStatus(data.status)
+      } catch {
+        setUsernameStatus('invalid')
+      }
+    }, 600)
+    return () => clearTimeout(usernameDebounce.current)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [username, editing])
 
   if (!user) return null
 
@@ -32,7 +58,8 @@ export default function Profile() {
     .toUpperCase()
 
   function startEditing() {
-    setFullName(user.fullName || '')
+    setUsername(user.username || '')
+    setUsernameStatus(null)
     setPhone(user.phone || '')
     setBio(user.bio || '')
     setLocation(user.location || '')
@@ -63,6 +90,15 @@ export default function Profile() {
   async function onSave(e) {
     e.preventDefault()
     setError('')
+    const u = username.trim().replace(/^@/, '')
+    if (!u) {
+      setError('Username is required.')
+      return
+    }
+    if (usernameStatus !== 'available' && usernameStatus !== 'unchanged') {
+      setError(usernameStatus === 'taken' ? 'That username is taken.' : 'Choose a valid, available username.')
+      return
+    }
     if (nin && !/^\d{11}$/.test(nin.trim())) {
       setError('NIN must be exactly 11 digits.')
       return
@@ -70,7 +106,7 @@ export default function Profile() {
     setSaving(true)
     try {
       await updateProfile({
-        fullName: fullName.trim(),
+        username: u,
         phone: phone.trim() || undefined,
         bio: bio.trim(),
         location: location.trim() || undefined,
@@ -115,8 +151,26 @@ export default function Profile() {
           </p>
         </div>
 
-        <Field label="Full name" required>
-          <input className="tw-input" value={fullName} onChange={(e) => setFullName(e.target.value)} required />
+        <Field label="Username" required>
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-black/40 font-medium select-none">@</span>
+            <input
+              className="tw-input pl-6"
+              value={username}
+              onChange={(e) => setUsername(e.target.value.replace(/\s/g, ''))}
+              autoComplete="username"
+              maxLength={30}
+              required
+            />
+          </div>
+          {usernameStatus === 'checking' && <p className="text-[11px] text-black/40 mt-1 font-medium">Checking…</p>}
+          {usernameStatus === 'available' && (
+            <p className="text-[11px] text-green-600 mt-1 font-medium">Available</p>
+          )}
+          {usernameStatus === 'taken' && <p className="text-[11px] text-red-600 mt-1 font-medium">Already taken</p>}
+          {usernameStatus === 'invalid' && (
+            <p className="text-[11px] text-red-600 mt-1 font-medium">3–30 chars: letters, numbers, . _ -</p>
+          )}
         </Field>
 
         <Field label="Phone">
@@ -197,8 +251,8 @@ export default function Profile() {
           )}
         </div>
         <div>
-          <p className="font-semibold text-[16px] leading-tight">{user.fullName}</p>
-          <p className="text-[13px] text-black/50">@{user.username}</p>
+          <p className="font-semibold text-[16px] leading-tight">@{user.username}</p>
+          <p className="text-[13px] text-black/50">{user.fullName}</p>
         </div>
       </div>
 
