@@ -1,4 +1,4 @@
-# TalentWorld (TWORLD) - System Requirements Document
+# ChombuTar - System Requirements Document
 ## Version 4.0 - Final Locked (No Platform Fees)
 **Date:** September 7, 2026  
 **Status:** All 7 clarifications locked + Flow diagram added + Platform charges removed per user request  
@@ -7,7 +7,7 @@
 ---
 
 ### 1. Overview
-TalentWorld lets one account wear multiple Hats. A Hat = professional identity + hiring intent. Split-file architecture: MyHats, BentoCard, Showroom, Profile, Dashboard.
+ChombuTar lets one account wear multiple Hats. A Hat = professional identity + hiring intent. Split-file architecture: MyHats, BentoCard, Showroom, Profile, Dashboard.
 
 **Decisions locked:**
 1. Orbits = Open custom, updatable
@@ -41,7 +41,7 @@ TalentWorld lets one account wear multiple Hats. A Hat = professional identity +
 - Draft saved.
 
 **Step 4: Browse Feed**
-- Role toggle at top: Creator pill and Employer pill. Persists in localStorage `talentworld_role`.
+- Role toggle at top: Creator pill and Employer pill. Persists in localStorage `chombutar_role`.
 - If Creator → system shows Client cards (black pill). If Employer → shows Talent cards (blue #0A13E6 pill).
 - Helper text: "You are browsing as Creator → viewing Client cards" etc. Toggle allowed, not forced.
 

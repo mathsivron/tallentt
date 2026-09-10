@@ -6,10 +6,10 @@ import { useEffect, useState } from 'react'
 export default function Layout({ children }) {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
-  const [browseRole, setBrowseRole] = useState(() => localStorage.getItem('talentworld_role') || 'creator')
+  const [browseRole, setBrowseRole] = useState(() => localStorage.getItem('chombutar_role') || 'creator')
 
   useEffect(() => {
-    localStorage.setItem('talentworld_role', browseRole)
+    localStorage.setItem('chombutar_role', browseRole)
   }, [browseRole])
 
   async function handleLogout() {
@@ -28,7 +28,7 @@ export default function Layout({ children }) {
         <div className="mx-auto max-w-[1200px] px-4 md:px-6 h-[64px] flex items-center justify-between gap-3">
           <Link to="/" className="flex items-center gap-2.5 shrink-0">
             <div className="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center font-bold text-[12px] border-[1.5px] border-black">
-              TW
+              CT
             </div>
             <div className="hidden sm:block">
               <div className="font-semibold text-[14px] leading-none tracking-tight">ChombuTar</div>
@@ -120,9 +120,9 @@ function NavItem({ to, icon: Icon, label, mobile, accent }) {
 }
 
 export function useBrowseRole() {
-  const [role, setRole] = useState(() => localStorage.getItem('talentworld_role') || 'creator')
+  const [role, setRole] = useState(() => localStorage.getItem('chombutar_role') || 'creator')
   useEffect(() => {
-    const onStorage = () => setRole(localStorage.getItem('talentworld_role') || 'creator')
+    const onStorage = () => setRole(localStorage.getItem('chombutar_role') || 'creator')
     window.addEventListener('storage', onStorage)
     const id = setInterval(onStorage, 400)
     return () => {

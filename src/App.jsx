@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { useAuth } from './context/AuthContext.jsx'
 import AuthPage from './pages/AuthPage.jsx'
+import Landing from './pages/Landing.jsx'
 import Layout from './components/Layout.jsx'
 import Feed from './pages/Feed.jsx'
 import ShowroomPage from './pages/ShowroomPage.jsx'
@@ -28,6 +29,17 @@ function PublicOnlyRoute({ children }) {
   return children
 }
 
+function HomeRoute() {
+  const { user, loading } = useAuth()
+  if (loading) return <FullPageSpinner />
+  if (!user) return <Landing />
+  return (
+    <Layout>
+      <Feed />
+    </Layout>
+  )
+}
+
 export default function App() {
   return (
     <Routes>
@@ -39,14 +51,7 @@ export default function App() {
           </PublicOnlyRoute>
         }
       />
-      <Route
-        path="/"
-        element={
-          <ProtectedRoute>
-            <Feed />
-          </ProtectedRoute>
-        }
-      />
+      <Route path="/" element={<HomeRoute />} />
       <Route
         path="/showroom"
         element={

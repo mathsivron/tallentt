@@ -47,7 +47,7 @@ export const api = {
 export async function uploadToCloudinary(file) {
   const cloud = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME
   const preset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET
-  const folder = import.meta.env.VITE_CLOUDINARY_FOLDER || 'talentworld_hats'
+  const folder = import.meta.env.VITE_CLOUDINARY_FOLDER || 'chombutar_hats'
   if (!cloud || !preset) throw new Error('Cloudinary env vars missing')
 
   const fd = new FormData()

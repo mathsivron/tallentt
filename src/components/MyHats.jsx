@@ -9,7 +9,7 @@ export default function MyHats() {
   const { user } = useAuth()
   const [hats, setHats] = useState([])
   const [loading, setLoading] = useState(true)
-  const [viewMode, setViewMode] = useState(() => localStorage.getItem('talentworld_viewMode') || 'grid')
+  const [viewMode, setViewMode] = useState(() => localStorage.getItem('chombutar_viewMode') || 'grid')
 
   useEffect(() => {
     if (!user?.id) return
@@ -31,7 +31,7 @@ export default function MyHats() {
 
   function setMode(m) {
     setViewMode(m)
-    localStorage.setItem('talentworld_viewMode', m)
+    localStorage.setItem('chombutar_viewMode', m)
   }
 
   async function handleDelete(id) {

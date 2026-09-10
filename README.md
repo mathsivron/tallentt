@@ -1,4 +1,4 @@
-# TalentWorld (TWORLD) v4.0
+# ChombuTar v4.0
 
 Production-ready PWA talent marketplace: dual Creator/Employer roles, Hats, Showroom, Cloudinary portfolio uploads, Neon Postgres, escrow (no platform fees), anti-leak masking, installable offline-capable app.
 
@@ -13,9 +13,9 @@ Production-ready PWA talent marketplace: dual Creator/Employer roles, Hats, Show
 
 1. Cloud name: `j1nochxj` (already set in env example).  
 2. Dashboard → Settings → Upload → **Add upload preset**  
-   - Name: `talentworld_unsigned_preset`  
+   - Name: `chombutar_unsigned_preset`  
    - Signing mode: **Unsigned**  
-   - Folder: `talentworld_hats`  
+   - Folder: `chombutar_hats`  
    - Allowed formats: image, video, audio  
    - Max file size: 20MB  
    - Transformations: enable `f_auto,q_auto` if desired  
@@ -40,9 +40,9 @@ Copy `.env.example` → `.env` (never commit `.env`):
 
 ```
 VITE_CLOUDINARY_CLOUD_NAME=j1nochxj
-VITE_CLOUDINARY_UPLOAD_PRESET=talentworld_unsigned_preset
-VITE_CLOUDINARY_FOLDER=talentworld_hats
-VITE_APP_NAME=TalentWorld
+VITE_CLOUDINARY_UPLOAD_PRESET=chombutar_unsigned_preset
+VITE_CLOUDINARY_FOLDER=chombutar_hats
+VITE_APP_NAME=ChombuTar
 VITE_APP_URL=https://your-app.vercel.app
 
 DATABASE_URL=postgresql://...pooler.../neondb?sslmode=require&channel_binding=require
@@ -80,7 +80,7 @@ Build: `npm run build` → `dist`. SPA rewrites in `vercel.json`.
 ## 6. Locked product rules
 
 1. Open custom orbits  
-2. Dual toggle Creator ↔ Employer (`talentworld_role`)  
+2. Dual toggle Creator ↔ Employer (`chombutar_role`)  
 3. Portfolio required for Talent; optional for Client  
 4. Verified if name ends Ltd/Plc/Corp/Inc/LLC  
 5. Escrow = price_min  

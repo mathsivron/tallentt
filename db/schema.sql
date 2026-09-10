@@ -1,4 +1,4 @@
--- TalentWorld full schema v4.0
+-- ChombuTar full schema v4.0
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 CREATE TABLE IF NOT EXISTS users (
