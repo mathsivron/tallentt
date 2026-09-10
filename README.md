@@ -51,6 +51,7 @@ CLOUDINARY_CLOUD_NAME=j1nochxj
 CLOUDINARY_API_KEY=...
 CLOUDINARY_API_SECRET=...
 JWT_SECRET=<long random string>
+NIN_HASH_SECRET=<a different long random string>
 ```
 
 Generate JWT secret:

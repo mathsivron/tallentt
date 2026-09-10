@@ -1,8 +1,26 @@
-import { useAuth } from '../context/AuthContext'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { Camera, ShieldCheck } from 'lucide-react'
+import { useAuth } from '../context/AuthContext'
+import { uploadToCloudinary } from '../lib/api'
+
+const MAX_BIO = 280
 
 export default function Profile() {
-  const { user } = useAuth()
+  const { user, updateProfile } = useAuth()
+  const [editing, setEditing] = useState(false)
+  const [fullName, setFullName] = useState(user?.fullName || '')
+  const [phone, setPhone] = useState(user?.phone || '')
+  const [bio, setBio] = useState(user?.bio || '')
+  const [location, setLocation] = useState(user?.location || '')
+  const [country, setCountry] = useState(user?.country || '')
+  const [lga, setLga] = useState(user?.lga || '')
+  const [nin, setNin] = useState('')
+  const [avatarUrl, setAvatarUrl] = useState(user?.avatarUrl || '')
+  const [uploadingAvatar, setUploadingAvatar] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
   if (!user) return null
 
   const initials = (user.fullName || user.username || '?')
@@ -13,13 +31,170 @@ export default function Profile() {
     .slice(0, 2)
     .toUpperCase()
 
+  function startEditing() {
+    setFullName(user.fullName || '')
+    setPhone(user.phone || '')
+    setBio(user.bio || '')
+    setLocation(user.location || '')
+    setCountry(user.country || '')
+    setLga(user.lga || '')
+    setNin('')
+    setAvatarUrl(user.avatarUrl || '')
+    setError('')
+    setEditing(true)
+  }
+
+  async function onAvatarFile(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingAvatar(true)
+    setError('')
+    try {
+      const uploaded = await uploadToCloudinary(file)
+      setAvatarUrl(uploaded.url)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setUploadingAvatar(false)
+      e.target.value = ''
+    }
+  }
+
+  async function onSave(e) {
+    e.preventDefault()
+    setError('')
+    if (nin && !/^\d{11}$/.test(nin.trim())) {
+      setError('NIN must be exactly 11 digits.')
+      return
+    }
+    setSaving(true)
+    try {
+      await updateProfile({
+        fullName: fullName.trim(),
+        phone: phone.trim() || undefined,
+        bio: bio.trim(),
+        location: location.trim() || undefined,
+        country: country.trim() || undefined,
+        lga: lga.trim() || undefined,
+        avatarUrl: avatarUrl || undefined,
+        nin: nin.trim() || undefined,
+      })
+      setNin('')
+      setEditing(false)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (editing) {
+    return (
+      <form
+        onSubmit={onSave}
+        className="max-w-[480px] mx-auto bg-white rounded-[24px] border-[1.5px] border-black p-6 shadow-[0_8px_24px_rgba(0,0,0,0.06)] space-y-5"
+      >
+        <h1 className="text-[20px] font-bold tracking-tight">Edit profile</h1>
+
+        <div className="flex items-center gap-4">
+          <div className="relative w-16 h-16 shrink-0">
+            <div className="w-16 h-16 rounded-full border-[1.5px] border-black bg-black text-white flex items-center justify-center text-[18px] font-bold overflow-hidden">
+              {avatarUrl ? (
+                <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
+              ) : (
+                initials
+              )}
+            </div>
+            <label className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-[#0A13E6] border-[1.5px] border-black flex items-center justify-center cursor-pointer">
+              <Camera size={12} className="text-white" />
+              <input type="file" accept="image/*" className="hidden" onChange={onAvatarFile} disabled={uploadingAvatar} />
+            </label>
+          </div>
+          <p className="text-[12px] text-black/50 font-medium">
+            {uploadingAvatar ? 'Uploading…' : 'Tap the camera to change your photo'}
+          </p>
+        </div>
+
+        <Field label="Full name" required>
+          <input className="tw-input" value={fullName} onChange={(e) => setFullName(e.target.value)} required />
+        </Field>
+
+        <Field label="Phone">
+          <input className="tw-input" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+234…" />
+        </Field>
+
+        <Field label={`Bio (${bio.length}/${MAX_BIO})`}>
+          <textarea
+            className="tw-input min-h-[80px] resize-none"
+            maxLength={MAX_BIO}
+            value={bio}
+            onChange={(e) => setBio(e.target.value)}
+            placeholder="A short line about you"
+          />
+        </Field>
+
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Country">
+            <input className="tw-input" value={country} onChange={(e) => setCountry(e.target.value)} />
+          </Field>
+          <Field label="LGA / City">
+            <input className="tw-input" value={lga} onChange={(e) => setLga(e.target.value)} />
+          </Field>
+        </div>
+
+        <Field label="Location">
+          <input className="tw-input" value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Neighbourhood, city" />
+        </Field>
+
+        <Field label="NIN (National Identification Number)">
+          <input
+            className="tw-input"
+            inputMode="numeric"
+            maxLength={11}
+            value={nin}
+            onChange={(e) => setNin(e.target.value.replace(/\D/g, ''))}
+            placeholder={user.ninVerified ? `On file · ending in ${user.ninLast4}` : 'Enter your 11-digit NIN'}
+          />
+          <p className="text-[10px] text-black/40 mt-1.5 font-medium flex items-center gap-1">
+            <ShieldCheck size={12} />
+            We store a one-way hash, never the number itself. Leave blank to keep what's on file.
+          </p>
+        </Field>
+
+        {error && (
+          <div className="rounded-[12px] border-[1.5px] border-red-200 bg-red-50 px-4 py-2.5 text-[13px] font-medium text-red-700">
+            {error}
+          </div>
+        )}
+
+        <div className="flex gap-3">
+          <button type="submit" disabled={saving || uploadingAvatar} className="tw-btn-primary flex-1 disabled:opacity-60">
+            {saving ? 'Saving…' : 'Save changes'}
+          </button>
+          <button type="button" onClick={() => setEditing(false)} className="tw-btn-ghost">
+            Cancel
+          </button>
+        </div>
+      </form>
+    )
+  }
+
   return (
     <div className="max-w-[480px] mx-auto bg-white rounded-[24px] border-[1.5px] border-black p-6 shadow-[0_8px_24px_rgba(0,0,0,0.06)] space-y-5">
-      <h1 className="text-[20px] font-bold tracking-tight">Profile</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-[20px] font-bold tracking-tight">Profile</h1>
+        <button onClick={startEditing} className="tw-btn-ghost h-9 px-4 text-[12px]">
+          Edit
+        </button>
+      </div>
 
       <div className="flex items-center gap-4">
-        <div className="w-16 h-16 rounded-full border-[1.5px] border-black bg-black text-white flex items-center justify-center text-[18px] font-bold shrink-0">
-          {initials}
+        <div className="w-16 h-16 rounded-full border-[1.5px] border-black bg-black text-white flex items-center justify-center text-[18px] font-bold shrink-0 overflow-hidden">
+          {user.avatarUrl ? (
+            <img src={user.avatarUrl} alt="" className="w-full h-full object-cover" />
+          ) : (
+            initials
+          )}
         </div>
         <div>
           <p className="font-semibold text-[16px] leading-tight">{user.fullName}</p>
@@ -27,18 +202,30 @@ export default function Profile() {
         </div>
       </div>
 
+      {user.bio && <p className="text-[13px] text-black/70">{user.bio}</p>}
+
       <dl className="grid grid-cols-2 gap-3">
         {[
           ['Email', user.email],
           ['Role', user.role],
+          ['Phone', user.phone || '—'],
           ['Country', user.country || '—'],
           ['LGA', user.lga || '—'],
+          ['Location', user.location || '—'],
         ].map(([label, value]) => (
           <div key={label} className="rounded-[14px] bg-[#F5F3EF] border border-black/5 p-3">
             <dt className="text-[10px] font-bold tracking-widest uppercase text-black/40">{label}</dt>
-            <dd className="font-semibold text-[13px] mt-0.5 capitalize">{value}</dd>
+            <dd className="font-semibold text-[13px] mt-0.5 capitalize break-words">{value}</dd>
           </div>
         ))}
+        <div className="rounded-[14px] bg-[#F5F3EF] border border-black/5 p-3 col-span-2">
+          <dt className="text-[10px] font-bold tracking-widest uppercase text-black/40 flex items-center gap-1">
+            <ShieldCheck size={11} /> NIN
+          </dt>
+          <dd className="font-semibold text-[13px] mt-0.5">
+            {user.ninVerified ? `Verified · ending in ${user.ninLast4}` : 'Not added yet'}
+          </dd>
+        </div>
       </dl>
 
       <Link
@@ -48,5 +235,16 @@ export default function Profile() {
         Manage my hats →
       </Link>
     </div>
+  )
+}
+
+function Field({ label, required, children }) {
+  return (
+    <label className="block space-y-1.5">
+      <span className="tw-label">
+        {label} {required && <span className="text-red-500 normal-case">*</span>}
+      </span>
+      {children}
+    </label>
   )
 }

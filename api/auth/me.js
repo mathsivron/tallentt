@@ -12,7 +12,9 @@ export default async function handler(req, res) {
 
   try {
     const result = await query(
-      `SELECT id, full_name, username, email, role, country, lga FROM users WHERE id = $1`,
+      `SELECT id, full_name, username, email, role, country, lga,
+              avatar_url, bio, location, phone, nin_hash, nin_last4
+       FROM users WHERE id = $1`,
       [session.sub],
     )
     const row = result.rows[0]

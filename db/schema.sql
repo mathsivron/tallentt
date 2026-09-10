@@ -13,11 +13,17 @@ CREATE TABLE IF NOT EXISTS users (
   avatar_url TEXT,
   bio TEXT,
   location TEXT,
+  phone TEXT,
+  nin_hash TEXT,
+  nin_last4 TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_users_email ON users (email);
 CREATE INDEX IF NOT EXISTS idx_users_username ON users (username);
+-- One NIN can only ever back one account. Partial index so multiple
+-- users with no NIN on file don't collide on NULL.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_nin_hash ON users (nin_hash) WHERE nin_hash IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS orbits (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
