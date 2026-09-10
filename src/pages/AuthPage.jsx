@@ -23,7 +23,7 @@ const CATEGORIES = [
 const LEGAL = {
   terms: {
     title: 'Terms of Service',
-    body: 'TalentWorld provides a marketplace for talent to showcase skills and for clients to discover and book them. You must be 18+ or have guardian consent. You own your content. Escrow funds are released in full to talent on confirmed delivery — TalentWorld takes no platform fee in this phase.',
+    body: 'ChombuTar provides a marketplace for talent to showcase skills and for clients to discover and book them. You must be 18+ or have guardian consent. You own your content. Escrow funds are released in full to talent on confirmed delivery — ChombuTar takes no platform fee in this phase.',
   },
   privacy: {
     title: 'Privacy Policy',
@@ -171,7 +171,7 @@ export default function AuthPage() {
 
   return (
     <main className="v9-shell">
-      <div className="v9-logo" aria-label="TalentWorld">
+      <div className="v9-logo" aria-label="ChombuTar">
         <div className="v9-logo-circle" aria-hidden>
           <div className="v9-logo-arrow" />
         </div>
@@ -210,7 +210,7 @@ export default function AuthPage() {
           {mode === 'signup' ? (
             <form onSubmit={handleSignup} noValidate>
               <h1 className="v9-title">Create your spotlight</h1>
-              <p className="v9-sub">Join TalentWorld and own your stage.</p>
+              <p className="v9-sub">Join ChombuTar and own your stage.</p>
 
               <div className="v9-field">
                 <label htmlFor="fullName">Full name</label>
@@ -403,7 +403,7 @@ export default function AuthPage() {
               </div>
 
               <p className="v9-helper">
-                New to TalentWorld?{' '}
+                New to ChombuTar?{' '}
                 <button type="button" onClick={() => switchMode('signup')}>
                   Create account
                 </button>
@@ -420,7 +420,7 @@ export default function AuthPage() {
         </div>
       </div>
 
-      <p className="v9-outside-footer">© 2026 TalentWorld • Own Your Spotlight • signup V9</p>
+      <p className="v9-outside-footer">© 2026 ChombuTar • Own Your Spotlight • signup V9</p>
 
       {legalKey && LEGAL[legalKey] && (
         <div className="v9-modal-overlay" role="dialog" aria-modal="true" onClick={() => setLegalKey(null)}>

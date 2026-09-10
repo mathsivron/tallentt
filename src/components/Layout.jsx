@@ -31,7 +31,7 @@ export default function Layout({ children }) {
               TW
             </div>
             <div className="hidden sm:block">
-              <div className="font-semibold text-[14px] leading-none tracking-tight">TalentWorld</div>
+              <div className="font-semibold text-[14px] leading-none tracking-tight">ChombuTar</div>
               <div className="text-[10px] text-black/50 font-medium">Own your spotlight</div>
             </div>
           </Link>
