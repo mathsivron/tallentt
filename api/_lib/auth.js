@@ -1,7 +1,7 @@
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 
-const COOKIE_NAME = 'tw_session'
+const COOKIE_NAME = 'cw_session'
 const SEVEN_DAYS_SECONDS = 60 * 60 * 24 * 7
 
 function getSecret() {
