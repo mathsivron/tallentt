@@ -9,7 +9,8 @@ export default function Landing() {
         <div className="mx-auto max-w-[1200px] px-4 md:px-6 h-[100px] flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <img src="/logo.png" alt="ChombuTar" className="w-[70px] h-[70px] object-contain" />
-            <h1 className="text-[28px] sm:text-[50px] font-black tracking-[-0.02em] leading-[1.05] max-w-[830px] mx-auto">ChombuTar <br /> <h6 className="text-[18px]">..Own Your Spotlight</h6></h1><br />
+            <h1 className="text-[28px] sm:text-[50px] font-black tracking-[-0.02em] leading-[1.05] max-w-[830px] mx-auto">ChombuTar
+               <br /> <h6 className="text-[10px]">..Own Your Spotlight</h6></h1><br />
             <br />
           </div>
           
@@ -21,7 +22,7 @@ export default function Landing() {
         <section className="mx-auto max-w-[1200px] px-4 md:px-6 pt-16 pb-14 sm:pt-24 sm:pb-20 ">
           
           <h1 className="text-[23px] sm:text-[50px] font-black tracking-[-0.02em] leading-[1.05] max-w-[830px] mx-auto">
-            A Talent-Client marketplace built for real work, real pay.<br /> No noise, no luck, just perfect matches.
+            A Talent-Client World built for real work, real pay.<br /> No noise, no luck, just perfect matches.
           </h1>
           
                   </section>
