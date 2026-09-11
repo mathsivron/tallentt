@@ -10,9 +10,9 @@ export default function Landing() {
           <div className="flex items-center gap-2.5">
             <img src="/logo.png" alt="ChombuTar" className="w-[70px] h-[70px] object-contain" />
             <h1 className="text-[28px] sm:text-[50px] font-black tracking-[-0.02em] leading-[1.05] max-w-[830px] mx-auto">ChombuTar</h1><br />
-            <br /><h6>..Own Your Spotlight</h6>
+            <br />
           </div>
-          
+          <h6>..Own Your Spotlight</h6>
         </div>
       </header>
 
