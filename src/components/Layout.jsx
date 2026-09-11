@@ -27,7 +27,7 @@ export default function Layout({ children }) {
       <header className="sticky top-0 z-40 bg-[#F7F3EB]/90 backdrop-blur-xl border-b-[1.5px] border-black">
         <div className="mx-auto max-w-[1200px] px-4 md:px-6 h-20 flex items-center justify-between gap-3">
           <Link to="/" className="flex items-center gap-2.5 shrink-0">
-            <img src="/logo.png" alt="ChombuTar" className="w-30 h-25 object-contain" />
+            <img src="/logo.png" alt="ChombuTar" className="w-20 h-18 object-contain" />
           </Link>
 
           <nav className="hidden md:flex items-center gap-1">
