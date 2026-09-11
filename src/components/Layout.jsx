@@ -29,8 +29,7 @@ export default function Layout({ children }) {
           <Link to="/" className="flex items-center gap-2.5 shrink-0">
             <img src="/logo.png" alt="ChombuTar" className="w-8 h-8 object-contain" />
             <div className="hidden sm:block">
-              <div className="font-semibold text-[14px] leading-none tracking-tight">ChombuTar</div>
-              <div className="text-[10px] text-black/50 font-medium">Own your spotlight</div>
+              
             </div>
           </Link>
 
