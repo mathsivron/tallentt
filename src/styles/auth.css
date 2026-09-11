@@ -21,7 +21,7 @@
   font-family: Inter, ui-sans-serif, system-ui, sans-serif;
 }
 
- Logo block — scaled 0.7x from original 560px container 
+/* Logo block — scaled 0.7x from original 560px container */
 .v9-logo {
   display: flex;
   flex-direction: column;
@@ -31,23 +31,11 @@
   max-width: 63vw;
   width: 392px;
 }
-.v9-logo-circle {
+.v9-logo-icon {
   width: 78px;
   height: 78px;
-  border-radius: 50%;
-  background: var(--v9-blue);
-  display: grid;
-  place-items: center;
+  object-fit: contain;
   margin-bottom: 12px;
-  position: relative;
-}
-.v9-logo-arrow {
-  width: 0;
-  height: 0;
-  border-top: 10px solid transparent;
-  border-bottom: 10px solid transparent;
-  border-left: 18px solid #fff;
-  margin-left: 4px;
 }
 .v9-logo-word {
   font-size: 48px;
@@ -55,16 +43,6 @@
   letter-spacing: -0.04em;
   font-weight: 800;
   color: var(--v9-ink);
-}
-.v9-logo-word .script-w {
-  font-family: Georgia, 'Times New Roman', serif;
-  font-style: italic;
-  font-weight: 700;
-  font-size: 59px;
-  color: var(--v9-blue);
-  margin: 0 -2px;
-  display: inline-block;
-  transform: translateY(2px);
 }
 .v9-logo-tag {
   margin-top: 6px;
@@ -76,12 +54,10 @@
 
 @media (max-width: 480px) {
   .v9-logo { width: 90vw; }
-  .v9-logo-circle { width: 64px; height: 64px; }
+  .v9-logo-icon { width: 64px; height: 64px; }
   .v9-logo-word { font-size: 36px; }
-  .v9-logo-word .script-w { font-size: 44px; }
   .v9-logo-tag { font-size: 16px; }
 }
-
 /* Card */
 .v9-card {
   width: 100%;
