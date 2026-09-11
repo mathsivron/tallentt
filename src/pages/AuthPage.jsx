@@ -171,9 +171,10 @@ export default function AuthPage() {
 
   return (
     <main className="v9-shell">
-            <div className="v9-logo" aria-label="ChombuTar">
-        <img src="/logo.png" alt="ChombuTar" className="w-22 h-22 object-contain" />
-       
+      <div className="v9-logo" aria-label="ChombuTar">
+        <img src="/logo.png" alt="ChombuTar" className="v9-logo-icon" />
+        <div className="v9-logo-word">ChombuTar</div>
+        <div className="v9-logo-tag">Own Your Spotlight</div>
       </div>
 
       <div className="v9-card">

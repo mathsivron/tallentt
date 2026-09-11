@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react'
 export default function Layout({ children }) {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
-  const [browseRole, setBrowseRole] = useState(() => localStorage.getItem('chombutar_role') || 'creator')
+  const [browseRole, setBrowseRole] = useState(() => localStorage.getItem('chombutar_role') || 'talent')
 
   useEffect(() => {
     localStorage.setItem('chombutar_role', browseRole)
@@ -18,9 +18,9 @@ export default function Layout({ children }) {
   }
 
   const helper =
-    browseRole === 'creator'
-      ? 'You are browsing as Creator → viewing Client cards'
-      : 'You are browsing as Employer → viewing Talent cards'
+    browseRole === 'talent'
+      ? 'You are browsing as Talent → viewing Client cards'
+      : 'You are browsing as Client → viewing Talent cards'
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F7F3EB] text-black antialiased">
@@ -42,21 +42,21 @@ export default function Layout({ children }) {
             <div className="flex rounded-full bg-white border-[1.5px] border-black p-0.5 text-[11px] font-semibold">
               <button
                 type="button"
-                onClick={() => setBrowseRole('creator')}
+                onClick={() => setBrowseRole('talent')}
                 className={`px-3 py-1.5 rounded-full transition ${
-                  browseRole === 'creator' ? 'bg-[#0A13E6] text-white' : 'text-black/60 hover:text-black'
+                  browseRole === 'talent' ? 'bg-[#0A13E6] text-white' : 'text-black/60 hover:text-black'
                 }`}
               >
-                Creator
+                Talent
               </button>
               <button
                 type="button"
-                onClick={() => setBrowseRole('employer')}
+                onClick={() => setBrowseRole('client')}
                 className={`px-3 py-1.5 rounded-full transition ${
-                  browseRole === 'employer' ? 'bg-black text-white' : 'text-black/60 hover:text-black'
+                  browseRole === 'client' ? 'bg-black text-white' : 'text-black/60 hover:text-black'
                 }`}
               >
-                Employer
+                Client
               </button>
             </div>
             <button
@@ -114,9 +114,9 @@ function NavItem({ to, icon: Icon, label, mobile, accent }) {
 }
 
 export function useBrowseRole() {
-  const [role, setRole] = useState(() => localStorage.getItem('chombutar_role') || 'creator')
+  const [role, setRole] = useState(() => localStorage.getItem('chombutar_role') || 'talent')
   useEffect(() => {
-    const onStorage = () => setRole(localStorage.getItem('chombutar_role') || 'creator')
+    const onStorage = () => setRole(localStorage.getItem('chombutar_role') || 'talent')
     window.addEventListener('storage', onStorage)
     const id = setInterval(onStorage, 400)
     return () => {

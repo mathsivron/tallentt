@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Heart, MapPin, Star, X, BookOpen, Send, Lock, Unlock } from 'lucide-react'
 
-const fmt = (n, currency = 'NGN') => {
+const fmtMoney = (n, currency = 'NGN') => {
   if (n == null) return '—'
   try {
     return new Intl.NumberFormat('en-NG', {
@@ -12,6 +12,23 @@ const fmt = (n, currency = 'NGN') => {
   } catch {
     return `₦${Number(n).toLocaleString()}`
   }
+}
+
+// Mirrors api/_lib/hatFields.js's formatPrice — fixed (rate + unit) vs
+// range (min–max, optionally negotiable).
+function formatPrice(hat, currency) {
+  if (hat.price_type === 'range' && hat.price_min != null) {
+    const base =
+      hat.price_max != null && hat.price_max !== hat.price_min
+        ? `${fmtMoney(hat.price_min, currency)} – ${fmtMoney(hat.price_max, currency)}`
+        : fmtMoney(hat.price_min, currency)
+    return hat.price_negotiable ? `${base} · negotiable` : base
+  }
+  if (hat.rate != null) {
+    const unit = hat.rate_unit === 'custom' ? hat.rate_unit_custom : hat.rate_unit ? `/${hat.rate_unit}` : ''
+    return `${fmtMoney(hat.rate, currency)}${unit ? ` ${unit}` : ''}`
+  }
+  return '—'
 }
 
 function Avatar({ src, name, className = 'w-12 h-12' }) {
@@ -139,15 +156,20 @@ export default function BentoCard({ hat, onBook, onApply, escrow, showMedia = tr
                 <MapPin size={11} /> {hat.lga}
               </span>
             )}
-            {hat.orbit && (
+            {hat.category && (
               <span className="truncate px-2 py-0.5 rounded-full bg-[#F5F3EF] border border-black/10">
-                {hat.orbit}
+                {hat.category}
+              </span>
+            )}
+            {hat.delivery_mode && (
+              <span className="truncate px-2 py-0.5 rounded-full bg-[#F5F3EF] border border-black/10">
+                {hat.delivery_mode}
               </span>
             )}
           </div>
 
           <div className="mt-auto flex items-center justify-between pt-1">
-            <span className="font-bold text-[14px]">{fmt(hat.price_min || hat.rate, currency)}</span>
+            <span className="font-bold text-[14px]">{formatPrice(hat, currency)}</span>
             <div className="flex items-center gap-2.5 text-[11px] text-black/50">
               <span className="flex items-center gap-0.5">
                 <Star size={12} className="text-amber-400 fill-amber-400" /> {Number(hat.rating || 0).toFixed(1)}
@@ -237,9 +259,14 @@ export default function BentoCard({ hat, onBook, onApply, escrow, showMedia = tr
                   <span className={`${pillBg} text-[10px] font-bold tracking-widest uppercase px-2.5 py-1 rounded-full border-[1.5px] border-black`}>
                     {hat.hat_type}
                   </span>
-                  {hat.orbit && (
+                  {hat.category && (
                     <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-[#F5F3EF] border-[1.5px] border-black/10">
-                      {hat.orbit}
+                      {hat.category}
+                    </span>
+                  )}
+                  {hat.delivery_mode && (
+                    <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-[#F5F3EF] border-[1.5px] border-black/10">
+                      {hat.delivery_mode}
                     </span>
                   )}
                   {hat.lga && (
@@ -259,12 +286,7 @@ export default function BentoCard({ hat, onBook, onApply, escrow, showMedia = tr
                   </div>
                 )}
 
-                <p className="text-[16px] font-bold">
-                  {fmt(hat.price_min, currency)}
-                  {hat.price_max != null && hat.price_max !== hat.price_min && (
-                    <span className="text-black/50 font-medium"> – {fmt(hat.price_max, currency)}</span>
-                  )}
-                </p>
+                <p className="text-[16px] font-bold">{formatPrice(hat, currency)}</p>
 
                 <EscrowBadge hat={hat} escrow={escrow} />
 
@@ -291,7 +313,8 @@ export default function BentoCard({ hat, onBook, onApply, escrow, showMedia = tr
 
 function EscrowBadge({ hat, escrow }) {
   const funded = escrow?.status === 'secured' || escrow?.status === 'released'
-  const amount = escrow?.amount ?? hat.price_min ?? 0
+  const fallback = hat.price_type === 'range' ? hat.price_min : hat.rate
+  const amount = escrow?.amount ?? fallback ?? 0
 
   if (funded) {
     return (

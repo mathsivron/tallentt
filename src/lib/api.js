@@ -38,8 +38,10 @@ export const api = {
   deleteHat: (id) => request(`/api/hats/${id}`, { method: 'DELETE' }),
 
   getShowroom: () => request('/api/showroom'),
-  getOrbits: () => request('/api/orbits'),
-  createOrbit: (name) => request('/api/orbits', { method: 'POST', body: JSON.stringify({ name }) }),
+  getCategories: () => request('/api/categories'),
+  createCategory: (name) => request('/api/categories', { method: 'POST', body: JSON.stringify({ name }) }),
+  getSeekingSuggestions: (role, q) =>
+    request(`/api/hats?suggest=1&role=${encodeURIComponent(role)}&q=${encodeURIComponent(q || '')}`),
   createEscrow: (body) => request('/api/escrows', { method: 'POST', body: JSON.stringify(body) }),
   fundEscrow: (id) => request(`/api/escrows/${id}/fund`, { method: 'POST' }),
   releaseEscrow: (id) => request(`/api/escrows/${id}/release`, { method: 'POST' }),

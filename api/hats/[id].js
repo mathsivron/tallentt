@@ -2,6 +2,7 @@ import { query } from '../_lib/db.js'
 import { getSessionUser } from '../_lib/auth.js'
 import { json, methodNotAllowed, readBody, isVerifiedName } from '../_lib/http.js'
 import { computeOrbitScore } from '../_lib/orbitScore.js'
+import { HAT_TYPES, DELIVERY_MODES, normalizePricing } from '../_lib/hatFields.js'
 
 async function getHat(id) {
   const { rows } = await query(
@@ -46,11 +47,35 @@ export default async function handler(req, res) {
       const verified =
         body.verified_name != null ? isVerifiedName(body.verified_name) : existing.is_verified
 
+      if (body.hat_type != null && !HAT_TYPES.includes(body.hat_type)) {
+        return json(res, 400, { error: 'Invalid hat type.' })
+      }
+      if (body.delivery_mode != null && !DELIVERY_MODES.includes(body.delivery_mode)) {
+        return json(res, 400, { error: 'Invalid delivery mode.' })
+      }
+
+      // Pricing is only re-validated/re-normalized when the client actually
+      // sent pricing fields this time — otherwise keep what's on file.
+      const touchedPricing = ['price_type', 'rate', 'price_min', 'price_max'].some((k) => body[k] != null)
+      let pricingFields = {
+        price_type: existing.price_type,
+        rate: existing.rate,
+        rate_unit: existing.rate_unit,
+        rate_unit_custom: existing.rate_unit_custom,
+        price_min: existing.price_min,
+        price_max: existing.price_max,
+        price_negotiable: existing.price_negotiable,
+      }
+      if (touchedPricing) {
+        const merged = { ...existing, ...body }
+        const pricing = normalizePricing(merged)
+        if (!pricing.ok) return json(res, 400, { error: pricing.error })
+        pricingFields = pricing.fields
+      }
+
       const nextSkills = body.skills ?? existing.skills ?? []
       const nextMotto = body.motto ?? existing.motto
-      const nextPrice = body.price_min != null ? Number(body.price_min) : existing.price_min
-      const nextAvail =
-        body.availability != null ? body.availability : existing.availability
+      const nextAvail = body.availability != null ? body.availability : existing.availability
 
       let mediaCount = existing.media?.length || 0
       if (Array.isArray(body.media)) {
@@ -70,7 +95,7 @@ export default async function handler(req, res) {
         isVerified: verified,
         skillsCount: Array.isArray(nextSkills) ? nextSkills.length : 0,
         hasMotto: Boolean(nextMotto && String(nextMotto).trim()),
-        hasPrice: Number(nextPrice) > 0,
+        hasPrice: pricingFields.price_type === 'fixed' ? pricingFields.rate > 0 : pricingFields.price_min > 0,
         availability: nextAvail,
         bookings: existing.bookings || 0,
         likes: existing.likes || 0,
@@ -82,37 +107,47 @@ export default async function handler(req, res) {
           hat_title = COALESCE($1, hat_title),
           verified_name = COALESCE($2, verified_name),
           is_verified = $3,
-          orbit = COALESCE($4, orbit),
+          category = COALESCE($4, category),
           skills = COALESCE($5, skills),
           hat_type = COALESCE($6, hat_type),
-          country = COALESCE($7, country),
-          country_flag = COALESCE($8, country_flag),
-          currency = COALESCE($9, currency),
-          lga = COALESCE($10, lga),
-          motto = COALESCE($11, motto),
-          price_min = COALESCE($12, price_min),
-          price_max = COALESCE($13, price_max),
-          rate = COALESCE($14, rate),
-          availability = COALESCE($15, availability),
-          active = COALESCE($16, active),
-          role = COALESCE($17, role),
-          orbit_score = $18
-        WHERE id = $19`,
+          delivery_mode = COALESCE($7, delivery_mode),
+          country = COALESCE($8, country),
+          country_flag = COALESCE($9, country_flag),
+          currency = COALESCE($10, currency),
+          lga = COALESCE($11, lga),
+          motto = COALESCE($12, motto),
+          price_type = $13,
+          price_min = $14,
+          price_max = $15,
+          price_negotiable = $16,
+          rate = $17,
+          rate_unit = $18,
+          rate_unit_custom = $19,
+          availability = COALESCE($20, availability),
+          active = COALESCE($21, active),
+          role = COALESCE($22, role),
+          orbit_score = $23
+        WHERE id = $24`,
         [
           body.hat_title ?? null,
           body.verified_name ?? null,
           verified,
-          body.orbit ?? null,
+          body.category ?? null,
           body.skills ?? null,
           body.hat_type ?? null,
+          body.delivery_mode ?? null,
           body.country ?? null,
           body.country_flag ?? null,
           body.currency ?? null,
           body.lga ?? null,
           body.motto ?? null,
-          body.price_min != null ? Number(body.price_min) : null,
-          body.price_max != null ? Number(body.price_max) : null,
-          body.rate != null ? Number(body.rate) : null,
+          pricingFields.price_type,
+          pricingFields.price_min,
+          pricingFields.price_max,
+          pricingFields.price_negotiable,
+          pricingFields.rate,
+          pricingFields.rate_unit,
+          pricingFields.rate_unit_custom,
           body.availability ?? null,
           body.active ?? null,
           body.role ?? null,

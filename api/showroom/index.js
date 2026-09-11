@@ -31,8 +31,8 @@ export default async function handler(req, res) {
       isHost: i === 0,
     }))
 
-    const { rows: orbits } = await query(`SELECT id, name FROM orbits ORDER BY name`)
-    return json(res, 200, { hats: curated, orbits })
+    const { rows: categories } = await query(`SELECT id, name FROM categories ORDER BY name`)
+    return json(res, 200, { hats: curated, categories })
   } catch (err) {
     console.error(err)
     return json(res, 500, { error: 'Failed to load showroom' })

@@ -13,10 +13,16 @@ export default async function handler(req, res) {
     const { hat_id, talent_id } = body
     if (!hat_id) return json(res, 400, { error: 'hat_id required' })
 
-    const { rows: hatRows } = await query(`SELECT id, user_id, price_min FROM hats WHERE id = $1`, [hat_id])
+    const { rows: hatRows } = await query(
+      `SELECT id, user_id, price_type, rate, price_min FROM hats WHERE id = $1`,
+      [hat_id],
+    )
     if (!hatRows[0]) return json(res, 404, { error: 'Hat not found' })
     const hat = hatRows[0]
-    const amount = hat.price_min
+    // Fixed pricing escrows the flat rate; range pricing escrows the floor
+    // of the range (the client can always fund more once agreed).
+    const amount = hat.price_type === 'range' ? hat.price_min : hat.rate
+    if (!amount) return json(res, 400, { error: 'This hat has no price set yet.' })
     const talent = talent_id || hat.user_id
 
     const { rows } = await query(

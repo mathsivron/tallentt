@@ -128,10 +128,12 @@ export default function MyHats() {
               <div className="min-w-0 flex-1">
                 <p className="font-semibold text-[14px] truncate">{h.hat_title}</p>
                 <p className="text-[12px] text-black/50">
-                  {h.username} · {h.orbit} · {h.role}
+                  {h.username} · {h.category} · {h.role}
                 </p>
               </div>
-              <span className="text-[13px] font-bold">₦{(h.price_min || 0).toLocaleString()}</span>
+              <span className="text-[13px] font-bold">
+                ₦{(h.price_type === 'range' ? h.price_min : h.rate || 0).toLocaleString()}
+              </span>
               <Link
                 to={`/create?edit=${h.id}`}
                 className="w-9 h-9 rounded-full border-[1.5px] border-black/10 flex items-center justify-center text-black/50 hover:border-black hover:text-black transition"

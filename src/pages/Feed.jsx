@@ -6,7 +6,7 @@ import { useBrowseRole } from '../components/Layout'
 
 export default function Feed() {
   const browseRole = useBrowseRole()
-  const hatRole = browseRole === 'creator' ? 'client' : 'talent'
+  const hatRole = browseRole === 'talent' ? 'client' : 'talent'
   const [hats, setHats] = useState([])
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)

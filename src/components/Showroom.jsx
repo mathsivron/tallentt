@@ -3,16 +3,14 @@ import { Plus, Search } from 'lucide-react'
 import { api } from '../lib/api'
 import BentoCard from './BentoCard'
 
-const FILTERS = ['All', 'Models', 'Actors', 'Musicians', 'Creators', 'Developers']
-
 export default function Showroom({ onBook }) {
   const [hats, setHats] = useState([])
-  const [orbits, setOrbits] = useState([])
+  const [categories, setCategories] = useState([])
   const [filter, setFilter] = useState('All')
   const [search, setSearch] = useState('')
   const [availableOnly, setAvailableOnly] = useState(false)
   const [loading, setLoading] = useState(true)
-  const [customOrbit, setCustomOrbit] = useState('')
+  const [customCategory, setCustomCategory] = useState('')
   const [adding, setAdding] = useState(false)
 
   useEffect(() => {
@@ -22,7 +20,7 @@ export default function Showroom({ onBook }) {
         const data = await api.getShowroom()
         if (!cancelled) {
           setHats(data.hats || [])
-          setOrbits(data.orbits || [])
+          setCategories(data.categories || [])
         }
       } catch (e) {
         console.error(e)
@@ -39,8 +37,8 @@ export default function Showroom({ onBook }) {
     if (availableOnly && !h.availability) return false
     if (
       filter !== 'All' &&
-      h.orbit !== filter &&
-      !(h.orbit || '').toLowerCase().includes(filter.toLowerCase())
+      h.category !== filter &&
+      !(h.category || '').toLowerCase().includes(filter.toLowerCase())
     )
       return false
     if (search) {
@@ -54,14 +52,14 @@ export default function Showroom({ onBook }) {
     return true
   })
 
-  async function addOrbit() {
-    if (!customOrbit.trim()) return
+  async function addCategory() {
+    if (!customCategory.trim()) return
     setAdding(true)
     try {
-      const { orbit } = await api.createOrbit(customOrbit.trim())
-      setOrbits((prev) => [...prev, orbit].sort((a, b) => a.name.localeCompare(b.name)))
-      setCustomOrbit('')
-      setFilter(orbit.name)
+      const { category } = await api.createCategory(customCategory.trim())
+      setCategories((prev) => [...prev, category].sort((a, b) => a.name.localeCompare(b.name)))
+      setCustomCategory('')
+      setFilter(category.name)
     } catch (e) {
       alert(e.message)
     } finally {
@@ -102,49 +100,44 @@ export default function Showroom({ onBook }) {
       </div>
 
       <div className="flex flex-wrap gap-2 items-center">
-        {FILTERS.map((f) => (
+        <button
+          type="button"
+          onClick={() => setFilter('All')}
+          className={`px-3.5 py-1.5 rounded-full text-[12px] font-semibold border-[1.5px] transition ${
+            filter === 'All'
+              ? 'bg-[#0A13E6] text-white border-black shadow'
+              : 'bg-white border-black/15 text-black/70 hover:border-black hover:text-black'
+          }`}
+        >
+          All
+        </button>
+        {categories.map((c) => (
           <button
-            key={f}
+            key={c.id}
             type="button"
-            onClick={() => setFilter(f)}
+            onClick={() => setFilter(c.name)}
             className={`px-3.5 py-1.5 rounded-full text-[12px] font-semibold border-[1.5px] transition ${
-              filter === f
+              filter === c.name
                 ? 'bg-[#0A13E6] text-white border-black shadow'
-                : 'bg-white border-black/15 text-black/70 hover:border-black hover:text-black'
+                : 'bg-white border-black/15 text-black/70'
             }`}
           >
-            {f}
+            {c.name}
           </button>
         ))}
-        {orbits
-          .filter((o) => !FILTERS.includes(o.name))
-          .map((o) => (
-            <button
-              key={o.id}
-              type="button"
-              onClick={() => setFilter(o.name)}
-              className={`px-3.5 py-1.5 rounded-full text-[12px] font-semibold border-[1.5px] transition ${
-                filter === o.name
-                  ? 'bg-[#0A13E6] text-white border-black shadow'
-                  : 'bg-white border-black/15 text-black/70'
-              }`}
-            >
-              {o.name}
-            </button>
-          ))}
         <div className="flex items-center gap-1.5 ml-1">
           <input
-            value={customOrbit}
-            onChange={(e) => setCustomOrbit(e.target.value)}
-            placeholder="Custom orbit"
+            value={customCategory}
+            onChange={(e) => setCustomCategory(e.target.value)}
+            placeholder="Custom category"
             className="px-3 h-8 rounded-full border-[1.5px] border-black/15 bg-white text-[12px] font-medium w-32 outline-none focus:border-black"
           />
           <button
             type="button"
             disabled={adding}
-            onClick={addOrbit}
+            onClick={addCategory}
             className="w-8 h-8 rounded-full bg-white border-[1.5px] border-black flex items-center justify-center hover:bg-black hover:text-white transition"
-            title="Add custom orbit"
+            title="Add custom category"
           >
             <Plus size={14} />
           </button>

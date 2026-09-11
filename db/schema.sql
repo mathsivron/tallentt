@@ -1,4 +1,4 @@
--- ChombuTar full schema v4.0
+-- ChombuTar full schema v5.0
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 CREATE TABLE IF NOT EXISTS users (
@@ -25,7 +25,11 @@ CREATE INDEX IF NOT EXISTS idx_users_username ON users (username);
 -- users with no NIN on file don't collide on NULL.
 CREATE UNIQUE INDEX IF NOT EXISTS idx_users_nin_hash ON users (nin_hash) WHERE nin_hash IS NOT NULL;
 
-CREATE TABLE IF NOT EXISTS orbits (
+-- Hats Category taxonomy — 14 MECE categories, open-ended (custom entries
+-- get inserted here too, same as the predefined 14, so they're
+-- searchable/reusable across future hats). NOT the Orbit score — that's
+-- hats.orbit_score, a computed confidence metric, unrelated to this table.
+CREATE TABLE IF NOT EXISTS categories (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT UNIQUE NOT NULL,
   created_by UUID REFERENCES users(id),
@@ -35,21 +39,29 @@ CREATE TABLE IF NOT EXISTS orbits (
 CREATE TABLE IF NOT EXISTS hats (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-  hat_title TEXT NOT NULL,
+  hat_title TEXT NOT NULL, -- "Client seeking …" / "Talent seeking …" phrase
   username TEXT NOT NULL,
   verified_name TEXT,
   is_verified BOOLEAN DEFAULT false,
-  orbit TEXT NOT NULL,
+  category TEXT NOT NULL, -- Hats Category (14 MECE taxonomy, custom allowed)
   skills TEXT[],
-  hat_type TEXT CHECK (hat_type IN ('Freelance','Contract','Full-time')),
+  hat_type TEXT CHECK (hat_type IN ('Full-time','Part-time','Freelance','Contract','One-Off')) DEFAULT 'Freelance',
+  delivery_mode TEXT CHECK (delivery_mode IN ('Physical','Remote','Hybrid')),
   country TEXT,
   country_flag TEXT,
   currency TEXT DEFAULT 'NGN',
   lga TEXT,
   motto TEXT CHECK (char_length(motto) <= 80),
-  price_min INT NOT NULL DEFAULT 0,
+  -- Pricing: price_type picks which fields are live.
+  --   fixed → rate + rate_unit (+ rate_unit_custom when rate_unit='custom')
+  --   range → price_min + price_max (+ price_negotiable)
+  price_type TEXT CHECK (price_type IN ('fixed','range')) DEFAULT 'fixed',
+  price_min INT,
   price_max INT,
+  price_negotiable BOOLEAN DEFAULT false,
   rate INT,
+  rate_unit TEXT CHECK (rate_unit IN ('hr','day','week','month','year','custom')),
+  rate_unit_custom TEXT,
   active BOOLEAN DEFAULT true,
   availability BOOLEAN DEFAULT true,
   role TEXT CHECK (role IN ('talent','client','dual')) DEFAULT 'talent',
@@ -57,14 +69,14 @@ CREATE TABLE IF NOT EXISTS hats (
   bookings INT DEFAULT 0,
   likes INT DEFAULT 0,
   comments_count INT DEFAULT 0,
-  orbit_score INT DEFAULT 0,
+  orbit_score INT DEFAULT 0, -- computed confidence score (see api/_lib/orbitScore.js) — NOT the category
   jobs_posted INT DEFAULT 0,
   spent INT DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_hats_user ON hats (user_id);
-CREATE INDEX IF NOT EXISTS idx_hats_orbit ON hats (orbit);
+CREATE INDEX IF NOT EXISTS idx_hats_category ON hats (category);
 CREATE INDEX IF NOT EXISTS idx_hats_role ON hats (role);
 CREATE INDEX IF NOT EXISTS idx_hats_active ON hats (active);
 
@@ -99,17 +111,22 @@ CREATE TABLE IF NOT EXISTS leak_attempts (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Seed default orbits
-INSERT INTO orbits (name) VALUES
+-- Seed the 14 MECE Hats Categories (open taxonomy — custom entries also
+-- get inserted here at hat-creation time, see api/categories/index.js).
+INSERT INTO categories (name) VALUES
+  ('Beauty & Grooming'),
+  ('Fashion & Styling'),
+  ('Photography & Videography'),
   ('Music & Audio'),
-  ('Visual Arts & Design'),
-  ('Performing Arts'),
-  ('Community & Care'),
-  ('Beauty'),
-  ('Event Buyer'),
-  ('Models'),
-  ('Actors'),
-  ('Musicians'),
-  ('Creators'),
-  ('Developers')
+  ('Performing Arts & Entertainment'),
+  ('Visual Arts, Design & Crafts'),
+  ('Modeling & Acting'),
+  ('Food & Catering'),
+  ('Events & Hospitality'),
+  ('Health, Wellness & Fitness'),
+  ('Home Services & Skilled Trades'),
+  ('Tech & Digital Services'),
+  ('Business, Admin & Professional Services'),
+  ('Education & Training')
 ON CONFLICT (name) DO NOTHING;
+
