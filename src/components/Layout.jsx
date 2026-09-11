@@ -25,9 +25,9 @@ export default function Layout({ children }) {
   return (
     <div className="min-h-screen flex flex-col bg-[#F7F3EB] text-black antialiased">
       <header className="sticky top-0 z-40 bg-[#F7F3EB]/90 backdrop-blur-xl border-b-[1.5px] border-black">
-                 <div className="mx-auto max-w-[1200px] px-4 md:px-6 h-[216px] flex items-center justify-between gap-3">
+                 <div className="mx-auto max-w-[1100px] px-4 md:px-6 h-[216px] flex items-center justify-between gap-3">
           <Link to="/" className="flex items-center gap-2.5 shrink-0">
-            <img src="/logo.png" alt="ChombuTar" className="w-[210px] h-[216px] object-contain" />
+            <img src="/logo.png" alt="ChombuTar" className="w-[205px] h-[216px] object-contain" />
           </Link>
         
 
