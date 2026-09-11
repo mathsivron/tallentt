@@ -23,12 +23,9 @@ export default function Layout({ children }) {
       : 'You are browsing as Employer → viewing Talent cards'
 
   return (
-          <div className="mx-auto max-w-[1200px] px-4 md:px-6 h-24 flex items-center justify-between gap-3"> <Link to="/" className="flex items-center gap-2.5 shrink-0">
+            <div className="mx-auto max-w-[1200px] px-4 md:px-6 h-24 flex items-center justify-between gap-3">
+          <Link to="/" className="flex items-center gap-2.5 shrink-0">
             <img src="/logo.png" alt="ChombuTar" className="w-24 h-24 object-contain" />
-            <div className="hidden sm:block">
-              <div className="font-semibold text-[14px] leading-none tracking-tight">ChombuTar</div>
-              <div className="text-[10px] text-black/50 font-medium">Own your spotlight</div>
-            </div>
           
           </Link>
 
