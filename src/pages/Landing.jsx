@@ -18,7 +18,7 @@ export default function Landing() {
       <main>
         <section className="mx-auto max-w-[1200px] px-4 md:px-6 pt-16 pb-14 sm:pt-24 sm:pb-20 text-justify">
           
-          <h1 className="text-[32px] sm:text-[56px] font-black tracking-[-0.02em] leading-[1.05] max-w-[820px] mx-auto">
+          <h1 className="text-[30px] sm:text-[50px] font-black tracking-[-0.02em] leading-[1.05] max-w-[820px] mx-auto">
             A talent-Client marketplace built for real work, real pay. No noise, no luck, just perfect matches.
           </h1>
           
