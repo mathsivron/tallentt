@@ -45,6 +45,41 @@ img, video { max-width: 100%; }
 }
 .hats-grid > * { max-width: 300px; }
 
+/* Showroom reel — vertical, snap-scroll, one talent per screen */
+.reel-container {
+  height: calc(var(--app-vh) - 220px);
+  min-height: 420px;
+  max-height: 780px;
+  overflow-y: auto;
+  scroll-snap-type: y mandatory;
+  border-radius: 20px;
+  border: 1.5px solid #000;
+  background: #000;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+.reel-container::-webkit-scrollbar { display: none; }
+.reel-container { scrollbar-width: none; }
+
+.reel-slide {
+  position: relative;
+  height: 100%;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  display: flex;
+  align-items: flex-end;
+  background: #0b0b0b;
+}
+
+@media (max-width: 640px) {
+  .reel-container {
+    height: calc(var(--app-vh) - 260px);
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+  }
+}
+
 /* Escrow green pulse */
 @keyframes escrow-pulse {
   0%, 100% { box-shadow: 0 0 0 0 rgba(22, 199, 132, 0.45); }

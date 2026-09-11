@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Heart, MapPin, Star, X, BookOpen, Send, Lock, Unlock } from 'lucide-react'
+import { Heart, MapPin, Star, X, BookOpen, Send, Lock, Unlock, Clock } from 'lucide-react'
 
 const fmtMoney = (n, currency = 'NGN') => {
   if (n == null) return '—'
@@ -29,6 +29,25 @@ function formatPrice(hat, currency) {
     return `${fmtMoney(hat.rate, currency)}${unit ? ` ${unit}` : ''}`
   }
   return '—'
+}
+
+// "15:00:00" (DB TIME) or "15:00" (HTML time input) -> "3:00 PM"
+function formatTime(t) {
+  if (!t) return ''
+  const [hStr, mStr] = String(t).split(':')
+  let h = Number(hStr)
+  const m = Number(mStr || 0)
+  const suffix = h >= 12 ? 'PM' : 'AM'
+  h = h % 12 || 12
+  return `${h}:${String(m).padStart(2, '0')} ${suffix}`
+}
+
+function formatAvailabilityWindow(hat) {
+  if (!hat.available_from && !hat.available_to) return ''
+  if (hat.available_from && hat.available_to) {
+    return `${formatTime(hat.available_from)} – ${formatTime(hat.available_to)}`
+  }
+  return formatTime(hat.available_from || hat.available_to)
 }
 
 function Avatar({ src, name, className = 'w-12 h-12' }) {
@@ -78,12 +97,16 @@ export default function BentoCard({ hat, onBook, onApply, escrow, showMedia = tr
   const isTalent = hat.role === 'talent'
   const pillBg = isTalent ? 'bg-[#0A13E6] text-white' : 'bg-black text-white'
   const media = hat.media?.[0]
-  const motto = hat.motto
+  // Clients don't need a motto shown — talent voice only.
+  const motto = isTalent && hat.motto
     ? hat.motto.length > 60
       ? hat.motto.slice(0, 60) + '…'
       : hat.motto
     : ''
   const currency = hat.currency || 'NGN'
+  // Talent's specific location — LGA/city + country, not just a bare city name.
+  const location = [hat.lga, hat.country].filter(Boolean).join(', ')
+  const availabilityWindow = formatAvailabilityWindow(hat)
 
   return (
     <>
@@ -133,6 +156,7 @@ export default function BentoCard({ hat, onBook, onApply, escrow, showMedia = tr
                 )}
               </p>
               <p className="text-[12px] text-black/50 truncate">{hat.hat_title}</p>
+              {motto && <p className="text-[12px] text-black/70 leading-snug line-clamp-2 italic mt-0.5">"{motto}"</p>}
             </div>
             {!showMedia && (
               <div className="flex items-center gap-1.5 shrink-0">
@@ -148,12 +172,15 @@ export default function BentoCard({ hat, onBook, onApply, escrow, showMedia = tr
             )}
           </div>
 
-          {motto && <p className="text-[12px] text-black/70 leading-snug line-clamp-2 italic">"{motto}"</p>}
-
-          <div className="flex items-center gap-2 text-[11px] text-black/50 font-medium">
-            {hat.lga && (
-              <span className="flex items-center gap-0.5">
-                <MapPin size={11} /> {hat.lga}
+          <div className="flex items-center gap-2 text-[11px] text-black/50 font-medium flex-wrap">
+            {location && (
+              <span className="flex items-center gap-0.5" title="Talent location">
+                <MapPin size={11} /> {location}
+              </span>
+            )}
+            {availabilityWindow && (
+              <span className="flex items-center gap-0.5" title="Daily availability window">
+                <Clock size={11} /> {availabilityWindow}
               </span>
             )}
             {hat.category && (
@@ -246,14 +273,11 @@ export default function BentoCard({ hat, onBook, onApply, escrow, showMedia = tr
                       {hat.is_verified && <span className="text-[#0A13E6]">✓</span>}
                     </h2>
                     <p className="text-[13px] text-black/60">{hat.hat_title}</p>
+                    {motto && (
+                      <p className="text-[13px] text-black/80 italic leading-snug mt-1">"{motto}"</p>
+                    )}
                   </div>
                 </div>
-
-                {hat.motto && (
-                  <p className="text-[13px] text-black/80 italic leading-snug border-l-4 border-[#0A13E6] bg-[#0A13E6]/5 pl-3 py-2 rounded-r-[12px]">
-                    "{hat.motto}"
-                  </p>
-                )}
 
                 <div className="flex flex-wrap gap-1.5">
                   <span className={`${pillBg} text-[10px] font-bold tracking-widest uppercase px-2.5 py-1 rounded-full border-[1.5px] border-black`}>
@@ -269,22 +293,17 @@ export default function BentoCard({ hat, onBook, onApply, escrow, showMedia = tr
                       {hat.delivery_mode}
                     </span>
                   )}
-                  {hat.lga && (
-                    <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-[#F5F3EF] border-[1.5px] border-black/10 flex items-center gap-1">
-                      <MapPin size={11} /> {hat.lga}
+                  {location && (
+                    <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-[#F5F3EF] border-[1.5px] border-black/10 flex items-center gap-1" title="Talent location">
+                      <MapPin size={11} /> {location}
+                    </span>
+                  )}
+                  {availabilityWindow && (
+                    <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-[#F5F3EF] border-[1.5px] border-black/10 flex items-center gap-1" title="Daily availability window">
+                      <Clock size={11} /> {availabilityWindow}
                     </span>
                   )}
                 </div>
-
-                {hat.skills?.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5">
-                    {hat.skills.map((s) => (
-                      <span key={s} className="text-[11px] font-medium bg-[#E6F0FF] text-[#0A13E6] px-2.5 py-0.5 rounded-full border border-[#0A13E6]/20">
-                        {s}
-                      </span>
-                    ))}
-                  </div>
-                )}
 
                 <p className="text-[16px] font-bold">{formatPrice(hat, currency)}</p>
 

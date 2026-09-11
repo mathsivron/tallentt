@@ -84,6 +84,10 @@ export default function HatForm() {
   const [country, setCountry] = useState(COUNTRIES[0])
   const [lga, setLga] = useState('')
 
+  // Daily availability window, e.g. 15:00 – 17:00
+  const [availableFrom, setAvailableFrom] = useState('')
+  const [availableTo, setAvailableTo] = useState('')
+
   // Delivery mode
   const [deliveryMode, setDeliveryMode] = useState('Remote')
 
@@ -145,6 +149,8 @@ export default function HatForm() {
         const c = COUNTRIES.find((x) => x.name === hat.country) || COUNTRIES[0]
         setCountry(c)
         setLga(hat.lga || '')
+        setAvailableFrom(hat.available_from ? hat.available_from.slice(0, 5) : '')
+        setAvailableTo(hat.available_to ? hat.available_to.slice(0, 5) : '')
         setDeliveryMode(hat.delivery_mode || 'Remote')
         setPriceType(hat.price_type || 'fixed')
         setRate(hat.rate != null ? String(hat.rate) : '')
@@ -258,6 +264,8 @@ export default function HatForm() {
         country_flag: country.flag,
         currency: country.currency,
         lga,
+        available_from: availableFrom || undefined,
+        available_to: availableTo || undefined,
         motto: motto.slice(0, 80),
         price_type: priceType,
         rate: priceType === 'fixed' ? Number(rate) : undefined,
@@ -433,6 +441,26 @@ export default function HatForm() {
         </Field>
         <Field label="LGA / City">
           <input className="tw-input" value={lga} onChange={(e) => setLga(e.target.value)} placeholder="Yaba" />
+        </Field>
+      </div>
+
+      {/* Daily availability window */}
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Available From">
+          <input
+            type="time"
+            className="tw-input"
+            value={availableFrom}
+            onChange={(e) => setAvailableFrom(e.target.value)}
+          />
+        </Field>
+        <Field label="Available To">
+          <input
+            type="time"
+            className="tw-input"
+            value={availableTo}
+            onChange={(e) => setAvailableTo(e.target.value)}
+          />
         </Field>
       </div>
 

@@ -126,8 +126,10 @@ export default async function handler(req, res) {
           availability = COALESCE($20, availability),
           active = COALESCE($21, active),
           role = COALESCE($22, role),
-          orbit_score = $23
-        WHERE id = $24`,
+          available_from = $23,
+          available_to = $24,
+          orbit_score = $25
+        WHERE id = $26`,
         [
           body.hat_title ?? null,
           body.verified_name ?? null,
@@ -151,6 +153,8 @@ export default async function handler(req, res) {
           body.availability ?? null,
           body.active ?? null,
           body.role ?? null,
+          body.available_from ?? existing.available_from ?? null,
+          body.available_to ?? existing.available_to ?? null,
           orbitScore,
           id,
         ],

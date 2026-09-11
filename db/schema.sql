@@ -64,6 +64,8 @@ CREATE TABLE IF NOT EXISTS hats (
   rate_unit_custom TEXT,
   active BOOLEAN DEFAULT true,
   availability BOOLEAN DEFAULT true,
+  available_from TIME, -- e.g. 15:00 — start of daily availability window
+  available_to TIME,   -- e.g. 17:00 — end of daily availability window
   role TEXT CHECK (role IN ('talent','client','dual')) DEFAULT 'talent',
   rating DECIMAL DEFAULT 0,
   bookings INT DEFAULT 0,

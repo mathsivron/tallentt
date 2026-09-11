@@ -132,6 +132,8 @@ export default async function handler(req, res) {
         role = 'talent', // talent hat = talent listing
         media = [],
         availability = true,
+        available_from,
+        available_to,
       } = body
 
       if (!hat_title || !category) {
@@ -169,8 +171,8 @@ export default async function handler(req, res) {
           user_id, hat_title, username, verified_name, is_verified, category, skills,
           hat_type, delivery_mode, country, country_flag, currency, lga, motto,
           price_type, price_min, price_max, price_negotiable, rate, rate_unit, rate_unit_custom,
-          role, availability, orbit_score
-        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24)
+          role, availability, available_from, available_to, orbit_score
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26)
         RETURNING *`,
         [
           session.sub,
@@ -196,6 +198,8 @@ export default async function handler(req, res) {
           pricing.fields.rate_unit_custom,
           role,
           availability,
+          available_from || null,
+          available_to || null,
           orbitScore,
         ],
       )
