@@ -43,7 +43,7 @@ export default function AuthPage() {
   const { login, register } = useAuth()
   const navigate = useNavigate()
 
-  const [mode, setMode] = useState('signup') // signup | login
+  const [mode, setMode] = useState('signin') // signup | login
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
