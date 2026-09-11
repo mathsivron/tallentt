@@ -9,7 +9,8 @@ export default function Landing() {
                 <div className="mx-auto max-w-[1200px] px-4 md:px-6 h-24 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <img src="/logo.png" alt="ChombuTar" className="w-24 h-24 object-contain" />
-                     </div>
+            <div className="font-semibold text-[14px] leading-none tracking-tight">ChombuTar</div>
+          </div>
           <div className="flex items-center gap-2">
             <Link
               to="/auth"
