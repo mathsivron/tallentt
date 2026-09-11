@@ -10,7 +10,7 @@ export default function Landing() {
           <div className="flex items-center gap-2.5">
             <img src="/logo.png" alt="ChombuTar" className="w-[70px] h-[70px] object-contain" />
             <h1 className="text-[28px] sm:text-[51px] font-black tracking-[-0.02em] leading-[1.05] max-w-[830px] mx-auto">ChombuTar
-               <br /> <h6 className="text-[12px]" style="float:right;">..Own Your Spotlight</h6></h1><br />
+               <br /> <h6 className="text-[12px] flex items-center justify-between" >..Own Your Spotlight</h6></h1><br />
             <br />
           </div>
           
