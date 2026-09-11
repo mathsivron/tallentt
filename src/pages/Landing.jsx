@@ -8,7 +8,8 @@ export default function Landing() {
       <header className="sticky top-0 z-40 bg-[#F7F3EB]/90 backdrop-blur-xl border-b-[1px] border-black">
         <div className="mx-auto max-w-[1200px] px-4 md:px-6 h-[80px] flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <img src="/logo.png" alt="ChombuTar" className="w-[70px] h-[70px] object-contain" /><h1 className="text-[28px] sm:text-[50px] font-black tracking-[-0.02em] leading-[1.05] max-w-[830px] mx-auto">ChombuTar</h1><br />..Own Your Spotlight
+            <img src="/logo.png" alt="ChombuTar" className="w-[70px] h-[70px] object-contain" /><h1 className="text-[28px] sm:text-[50px] font-black tracking-[-0.02em] leading-[1.05] max-w-[830px] mx-auto">ChombuTar</h1><br />
+            <br /><small>..Own Your Spotlight</small>
           </div>
           
         </div>
@@ -19,7 +20,7 @@ export default function Landing() {
         <section className="mx-auto max-w-[1200px] px-4 md:px-6 pt-16 pb-14 sm:pt-24 sm:pb-20 ">
           
           <h1 className="text-[23px] sm:text-[50px] font-black tracking-[-0.02em] leading-[1.05] max-w-[830px] mx-auto">
-            A talent-Client marketplace built for real work, real pay.<br /> No noise, no luck, just perfect matches.
+            A Talent-Client marketplace built for real work, real pay.<br /> No noise, no luck, just perfect matches.
           </h1>
           
                   </section>
@@ -29,7 +30,7 @@ export default function Landing() {
         <section className="border-t-[1.5px] border-black bg-white">
           <div className="mx-auto max-w-[1200px] px-4 md:px-6 py-14 text-center">
             <h2 className="text-[22px] sm:text-[28px] font-black tracking-tight">
-              Ready to own your spotlight?
+              Ready to Join and own your spotlight?
             </h2>
             <p className="mt-2 text-[14px] text-black/60">
               Join ChombuTar and start booking — or getting booked — today.
