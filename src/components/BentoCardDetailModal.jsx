@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { MapPin, Clock, X, BookOpen, Send, Lock, Unlock, AlertCircle, Play, ImageOff } from 'lucide-react'
+import { MapPin, Clock, X, BookOpen, Send, Lock, Unlock, AlertCircle, Play, ImageOff, Heart, Eye } from 'lucide-react'
 import { api } from '../lib/api'
 
 const fmtMoney = (n, currency = 'NGN') => {
@@ -161,7 +161,18 @@ function EscrowBadge({ hat, escrow }) {
 // location/owner/has_applied/has_booked. Fields the normalized detail
 // doesn't carry (hat_type, delivery_mode, the availability window) have
 // no API equivalent, so they keep coming from the feed card throughout.
-export default function BentoCardDetailModal({ hat, escrow, showMedia = true, onClose, onBook, onApply }) {
+//
+// Engagement (likes/views) is also one of those fields: buildCardDetail
+// (api/hats/[id].js) never includes likes/liked_by_me/views, so those
+// always come from the feed's `hat`, mirroring the same optimistic
+// like-toggle + rollback used in Showroom's ReelSlide and TalentProfile —
+// same api.toggleLike/api.recordView calls, no new endpoints.
+//
+// `onHatChange`, if given, is called with `{ id, ...patch }` after a
+// successful like/view so the parent (Feed) can patch its own `hats`
+// list — otherwise the feed card behind the modal would show stale
+// counts once the modal closes, with no full refetch required.
+export default function BentoCardDetailModal({ hat, escrow, showMedia = true, onClose, onBook, onApply, onHatChange }) {
   useEffect(() => {
     const scrollY = window.scrollY
     document.documentElement.classList.add('modal-open')
@@ -195,6 +206,57 @@ export default function BentoCardDetailModal({ hat, escrow, showMedia = true, on
     setActiveMediaIndex(0)
     setBrokenMedia(new Set())
   }, [cardId])
+
+  // Engagement — sourced from the feed's `hat` (see note above on why
+  // `detail` can't be used for this), reset whenever the modal points at
+  // a different card. Mirrors Showroom's ReelSlide / TalentProfile state
+  // shape exactly (liked / likeCount / viewCount / liking).
+  const [liked, setLiked] = useState(!!hat?.liked_by_me)
+  const [likeCount, setLikeCount] = useState(hat?.likes || 0)
+  const [viewCount, setViewCount] = useState(hat?.views || 0)
+  const [liking, setLiking] = useState(false)
+  const viewedRef = useRef(null)
+
+  useEffect(() => {
+    setLiked(!!hat?.liked_by_me)
+    setLikeCount(hat?.likes || 0)
+    setViewCount(hat?.views || 0)
+  }, [cardId, hat?.liked_by_me, hat?.likes, hat?.views])
+
+  // Record one view per card per time the modal is open — same
+  // fire-and-forget api.recordView call TalentProfile/Showroom make, with
+  // the same "don't surface view-count failures" behavior.
+  useEffect(() => {
+    if (!cardId || viewedRef.current === cardId) return
+    viewedRef.current = cardId
+    setViewCount((v) => {
+      const next = v + 1
+      onHatChange?.({ id: cardId, views: next })
+      return next
+    })
+    api.recordView(cardId).catch(() => {})
+  }, [cardId, onHatChange])
+
+  async function handleLike() {
+    if (liking || !cardId) return
+    setLiking(true)
+    const next = !liked
+    const nextCount = likeCount + (next ? 1 : -1)
+    setLiked(next)
+    setLikeCount(nextCount)
+    try {
+      await api.toggleLike(cardId)
+      onHatChange?.({ id: cardId, liked_by_me: next, likes: nextCount })
+    } catch (e) {
+      // Restore the previous state — never leave the UI showing a like
+      // the server rejected (e.g. session expired, so the PATCH 401s).
+      setLiked(!next)
+      setLikeCount(likeCount)
+    } finally {
+      setLiking(false)
+    }
+  }
+
 
   // Tracks the most recently *issued* request so a slow, older response
   // (e.g. Card A) can't overwrite a newer one (Card B) if the user opens
@@ -497,6 +559,25 @@ export default function BentoCardDetailModal({ hat, escrow, showMedia = true, on
             </div>
 
             <p className="text-[16px] font-bold">{priceDisplay}</p>
+
+            {/* Engagement — same Heart/Eye icons and optimistic toggle used
+                on Showroom's reel and the talent profile page; secondary
+                to price/tags above, not a redesign of the modal. */}
+            <div className="flex items-center gap-3 text-[12px] text-black/50 font-medium -mt-1">
+              <button
+                type="button"
+                onClick={handleLike}
+                disabled={liking}
+                aria-pressed={liked}
+                aria-label={liked ? 'Unlike' : 'Like'}
+                className="flex items-center gap-1 hover:text-black transition disabled:opacity-50"
+              >
+                <Heart size={14} className={liked ? 'fill-[#FF3B5C] text-[#FF3B5C]' : ''} /> {likeCount}
+              </button>
+              <span className="flex items-center gap-1">
+                <Eye size={14} /> {viewCount}
+              </span>
+            </div>
 
             <EscrowBadge hat={hat} escrow={escrow} />
 

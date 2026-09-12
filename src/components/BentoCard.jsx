@@ -78,7 +78,7 @@ function Avatar({ src, name, className = 'w-12 h-12' }) {
   )
 }
 
-export default function BentoCard({ hat, onBook, onApply, escrow, showMedia = true }) {
+export default function BentoCard({ hat, onBook, onApply, escrow, showMedia = true, onHatChange }) {
   const [open, setOpen] = useState(false)
 
   const isTalent = hat.role === 'talent'
@@ -224,6 +224,7 @@ export default function BentoCard({ hat, onBook, onApply, escrow, showMedia = tr
           onClose={() => setOpen(false)}
           onBook={onBook}
           onApply={onApply}
+          onHatChange={onHatChange}
         />
       )}
     </>

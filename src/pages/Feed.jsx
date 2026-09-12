@@ -45,6 +45,14 @@ export default function Feed() {
     alert(`Application sent for “${hat.hat_title}”. (Wire messaging next.)`)
   }
 
+  // Patches a single card in the feed list in place — used so a like/view
+  // recorded inside the BentoCardDetailModal (see its `onHatChange`) is
+  // reflected the moment the modal closes, without refetching the whole
+  // feed or reloading the page.
+  function handleHatChange(patch) {
+    setHats((prev) => prev.map((h) => (h.id === patch.id ? { ...h, ...patch } : h)))
+  }
+
   return (
     <div className="space-y-5">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -75,7 +83,14 @@ export default function Feed() {
       ) : (
         <div className="hats-grid">
           {hats.map((h) => (
-            <BentoCard key={h.id} hat={h} onBook={handleBook} onApply={handleApply} showMedia={false} />
+            <BentoCard
+              key={h.id}
+              hat={h}
+              onBook={handleBook}
+              onApply={handleApply}
+              showMedia={false}
+              onHatChange={handleHatChange}
+            />
           ))}
         </div>
       )}
