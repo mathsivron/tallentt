@@ -8,7 +8,7 @@ async function attachMedia(hats) {
   if (!hats.length) return hats
   const ids = hats.map((h) => h.id)
   const { rows } = await query(
-    `SELECT id, hat_id, url, public_id, type FROM hat_media WHERE hat_id = ANY($1::uuid[])`,
+    `SELECT id, hat_id, url, public_id, type, caption FROM hat_media WHERE hat_id = ANY($1::uuid[])`,
     [ids],
   )
   const byHat = {}
@@ -208,8 +208,8 @@ export default async function handler(req, res) {
       for (const m of media) {
         if (!m.url || !m.public_id) continue
         await query(
-          `INSERT INTO hat_media (hat_id, url, public_id, type) VALUES ($1,$2,$3,$4)`,
-          [hat.id, m.url, m.public_id, m.type || 'image'],
+          `INSERT INTO hat_media (hat_id, url, public_id, type, caption) VALUES ($1,$2,$3,$4,$5)`,
+          [hat.id, m.url, m.public_id, m.type || 'image', m.caption || null],
         )
       }
 

@@ -17,7 +17,7 @@ export default async function handler(req, res) {
     let mediaByHat = {}
     if (ids.length) {
       const { rows: media } = await query(
-        `SELECT id, hat_id, url, public_id, type FROM hat_media WHERE hat_id = ANY($1::uuid[])`,
+        `SELECT id, hat_id, url, public_id, type, caption FROM hat_media WHERE hat_id = ANY($1::uuid[])`,
         [ids],
       )
       for (const m of media) {

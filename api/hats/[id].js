@@ -12,7 +12,7 @@ async function getHat(id) {
   )
   if (!rows[0]) return null
   const { rows: media } = await query(
-    `SELECT id, hat_id, url, public_id, type FROM hat_media WHERE hat_id = $1`,
+    `SELECT id, hat_id, url, public_id, type, caption FROM hat_media WHERE hat_id = $1`,
     [id],
   )
   return { ...rows[0], media, confidence: rows[0].orbit_score }
@@ -83,8 +83,8 @@ export default async function handler(req, res) {
         for (const m of body.media) {
           if (!m.url || !m.public_id) continue
           await query(
-            `INSERT INTO hat_media (hat_id, url, public_id, type) VALUES ($1,$2,$3,$4)`,
-            [id, m.url, m.public_id, m.type || 'image'],
+            `INSERT INTO hat_media (hat_id, url, public_id, type, caption) VALUES ($1,$2,$3,$4,$5)`,
+            [id, m.url, m.public_id, m.type || 'image', m.caption || null],
           )
         }
         mediaCount = body.media.filter((m) => m.url && m.public_id).length

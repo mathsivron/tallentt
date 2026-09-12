@@ -8,6 +8,7 @@ import ShowroomPage from './pages/ShowroomPage.jsx'
 import MyHats from './components/MyHats.jsx'
 import HatForm from './components/HatForm.jsx'
 import Profile from './pages/Profile.jsx'
+import TalentProfile from './pages/TalentProfile.jsx'
 
 function FullPageSpinner() {
   return (
@@ -81,6 +82,14 @@ export default function App() {
         element={
           <ProtectedRoute>
             <Profile />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/talent/:hatId"
+        element={
+          <ProtectedRoute>
+            <TalentProfile />
           </ProtectedRoute>
         }
       />

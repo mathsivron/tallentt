@@ -88,6 +88,7 @@ CREATE TABLE IF NOT EXISTS hat_media (
   url TEXT NOT NULL,
   public_id TEXT NOT NULL,
   type TEXT CHECK (type IN ('image','video','audio')),
+  caption TEXT, -- optional caption, set via the Showroom "Add" flow
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -108,6 +109,29 @@ CREATE TABLE IF NOT EXISTS escrows (
 CREATE TABLE IF NOT EXISTS leak_attempts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES users(id),
+  message TEXT,
+  masked BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Seed the 14 MECE Hats Categories (open taxonomy — custom entries also
+-- get inserted here at hat-creation time, see api/categories/index.js).
+INSERT INTO categories (name) VALUES
+  ('Beauty & Grooming'),
+  ('Fashion & Styling'),
+  ('Photography & Videography'),
+  ('Music & Audio'),
+  ('Performing Arts & Entertainment'),
+  ('Visual Arts, Design & Crafts'),
+  ('Modeling & Acting'),
+  ('Food & Catering'),
+  ('Events & Hospitality'),
+  ('Health, Wellness & Fitness'),
+  ('Home Services & Skilled Trades'),
+  ('Tech & Digital Services'),
+  ('Business, Admin & Professional Services'),
+  ('Education & Training')
+ON CONFLICT (name) DO NOTHING;  user_id UUID REFERENCES users(id),
   message TEXT,
   masked BOOLEAN DEFAULT true,
   created_at TIMESTAMPTZ DEFAULT NOW()

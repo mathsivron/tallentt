@@ -1,11 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import { Plus, Search, Heart, MapPin } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { api } from '../lib/api'
+import AvailabilityBadge from './AvailabilityBadge'
+import AddShowroomMedia from './AddShowroomMedia'
 
 // One full-screen reel slide — pulls its media, name, and motto straight
 // off the hat (same data BentoCard uses), autoplaying its video only while
-// it's the one in view.
-function ReelSlide({ hat, onBook }) {
+// it's the one in view. "Book Now" takes you to that person's profile
+// instead of booking directly from the reel.
+function ReelSlide({ hat }) {
   const videoRef = useRef(null)
   const slideRef = useRef(null)
   const media = hat.media?.[0]
@@ -56,19 +60,17 @@ function ReelSlide({ hat, onBook }) {
           Showroom Host
         </span>
       )}
-      {hat.availability && (
-        <span className="absolute top-3 right-3 z-10 bg-[#16C784] text-white text-[9px] font-bold tracking-widest uppercase px-2 py-0.5 rounded-full border-[1.5px] border-black shadow">
-          Available
-        </span>
-      )}
+      <AvailabilityBadge available={hat.availability} className="absolute top-3 right-3 z-10" />
 
       <div className="relative z-10 w-full p-4 sm:p-5 text-white">
         <p className="font-bold text-[16px] leading-tight flex items-center gap-1">
           {hat.username}
           {hat.is_verified && <span className="text-[#7C9CFF]">✓</span>}
         </p>
-        {hat.motto && (
-          <p className="text-[13px] text-white/85 italic leading-snug mt-1 line-clamp-2">"{hat.motto}"</p>
+        {(media?.caption || hat.motto) && (
+          <p className="text-[13px] text-white/85 italic leading-snug mt-1 line-clamp-2">
+            "{media?.caption || hat.motto}"
+          </p>
         )}
         {hat.lga && (
           <p className="text-[11px] text-white/70 font-medium mt-1.5 flex items-center gap-1">
@@ -76,13 +78,12 @@ function ReelSlide({ hat, onBook }) {
           </p>
         )}
         <div className="flex items-center gap-3 mt-3">
-          <button
-            type="button"
-            className="flex-1 h-10 rounded-full bg-[#0A13E6] text-white text-[13px] font-semibold border-[1.5px] border-white/20"
-            onClick={() => onBook?.(hat)}
+          <Link
+            to={`/talent/${hat.id}`}
+            className="flex-1 h-10 rounded-full bg-[#0A13E6] text-white text-[13px] font-semibold border-[1.5px] border-white/20 flex items-center justify-center"
           >
-            Book Talent
-          </button>
+            Book Now
+          </Link>
           <span className="flex items-center gap-1 text-[12px] font-medium">
             <Heart size={14} /> {hat.likes || 0}
           </span>
@@ -92,7 +93,7 @@ function ReelSlide({ hat, onBook }) {
   )
 }
 
-export default function Showroom({ onBook }) {
+export default function Showroom() {
   const [hats, setHats] = useState([])
   const [categories, setCategories] = useState([])
   const [filter, setFilter] = useState('All')
@@ -101,25 +102,22 @@ export default function Showroom({ onBook }) {
   const [loading, setLoading] = useState(true)
   const [customCategory, setCustomCategory] = useState('')
   const [adding, setAdding] = useState(false)
+  const [showAdd, setShowAdd] = useState(false)
+
+  async function loadShowroom() {
+    try {
+      const data = await api.getShowroom()
+      setHats(data.hats || [])
+      setCategories(data.categories || [])
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      try {
-        const data = await api.getShowroom()
-        if (!cancelled) {
-          setHats(data.hats || [])
-          setCategories(data.categories || [])
-        }
-      } catch (e) {
-        console.error(e)
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
+    loadShowroom()
   }, [])
 
   const filtered = hats.filter((h) => {
@@ -166,6 +164,13 @@ export default function Showroom({ onBook }) {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowAdd(true)}
+            className="h-10 px-4 rounded-full bg-[#0A13E6] text-white text-[13px] font-semibold border-[1.5px] border-black shadow-[0_4px_12px_rgba(10,19,230,0.25)] hover:bg-black transition flex items-center gap-1.5 shrink-0"
+          >
+            <Plus size={15} /> Add
+          </button>
           <div className="relative flex-1 sm:w-64">
             <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-black/40" />
             <input
@@ -240,10 +245,12 @@ export default function Showroom({ onBook }) {
       ) : (
         <div className="reel-container">
           {filtered.map((h) => (
-            <ReelSlide key={h.id} hat={h} onBook={onBook} />
+            <ReelSlide key={h.id} hat={h} />
           ))}
         </div>
       )}
+
+      <AddShowroomMedia open={showAdd} onClose={() => setShowAdd(false)} onAdded={loadShowroom} />
     </div>
   )
 }
