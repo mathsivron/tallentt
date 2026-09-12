@@ -75,6 +75,15 @@ function formatAvailabilityWindow(hat) {
   return formatTime(hat.available_from || hat.available_to)
 }
 
+// Publication date, shared by the feed's `created_at` and the detail
+// API's `created_at` — same underlying column either way.
+function formatDate(dateStr) {
+  if (!dateStr) return ''
+  const d = new Date(dateStr)
+  if (Number.isNaN(d.getTime())) return ''
+  return new Intl.DateTimeFormat('en-NG', { day: 'numeric', month: 'short', year: 'numeric' }).format(d)
+}
+
 function Avatar({ src, name, className = 'w-12 h-12' }) {
   const [err, setErr] = useState(false)
   const initials = (name || '?')
@@ -211,21 +220,22 @@ export default function BentoCardDetailModal({ hat, escrow, showMedia = true, on
   const displayName = owner?.handle || owner?.name || hat.username
   const avatarSrc = owner?.avatar_url || hat.owner_avatar || hat.avatar_url
   const isVerified = loaded ? Boolean(owner?.is_verified) : Boolean(hat.is_verified)
+  // Card title — the primary heading for the detail view.
   const titleLine = loaded ? detail.title : hat.hat_title
-  const rawDescription = loaded ? detail.description : hat.motto
-  // Clients don't need a motto/description shown — talent voice only.
-  const description = isTalent && rawDescription
-    ? rawDescription.length > 60
-      ? rawDescription.slice(0, 60) + '…'
-      : rawDescription
-    : ''
+  // Full description/content — no truncation and no role gate here; this
+  // is the detail view, not the feed preview. Shown whenever the card
+  // actually has one.
+  const description = loaded ? detail.description : hat.motto
+  const tags = (loaded ? detail.tags : hat.skills) || []
   const category = loaded ? detail.category : hat.category
+  const hatTypeLabel = hat.hat_type || (isTalent ? 'Talent' : 'Client')
   const currency = (loaded ? detail.budget?.currency : hat.currency) || 'NGN'
   // Talent's specific location — LGA/city + country, not just a bare city name.
   const location = loaded ? detail.location : [hat.lga, hat.country].filter(Boolean).join(', ')
   // No equivalent in the normalized detail — always sourced from the feed card.
   const availabilityWindow = formatAvailabilityWindow(hat)
   const priceDisplay = loaded ? formatBudget(detail.budget) : formatPrice(hat, currency)
+  const publishedLabel = formatDate(loaded ? detail.created_at : hat.created_at)
 
   return (
     <div
@@ -262,17 +272,16 @@ export default function BentoCardDetailModal({ hat, escrow, showMedia = true, on
             </div>
           )}
 
-          <div className="p-5 md:p-6 space-y-4">
-            <div className="flex items-center gap-3">
-              <Avatar src={avatarSrc} name={displayName} className="w-14 h-14" />
-              <div>
-                <h2 className="text-[18px] font-bold flex items-center gap-1.5 leading-tight">
+          <div className="p-5 md:p-6 space-y-4 min-w-0">
+            <div className="flex items-center gap-3 min-w-0">
+              <Avatar src={avatarSrc} name={displayName} className="w-11 h-11" />
+              <div className="min-w-0 flex-1">
+                <p className="text-[13px] font-semibold flex items-center gap-1 truncate">
                   {displayName}
                   {isVerified && <span className="text-[#0A13E6]">✓</span>}
-                </h2>
-                <p className="text-[13px] text-black/60">{titleLine}</p>
-                {description && (
-                  <p className="text-[13px] text-black/80 italic leading-snug mt-1">"{description}"</p>
+                </p>
+                {publishedLabel && (
+                  <p className="text-[11px] text-black/40 font-medium">Posted {publishedLabel}</p>
                 )}
               </div>
             </div>
@@ -296,9 +305,32 @@ export default function BentoCardDetailModal({ hat, escrow, showMedia = true, on
               </div>
             )}
 
+            {titleLine && (
+              <h2 className="text-[19px] md:text-[20px] font-bold leading-snug break-words">{titleLine}</h2>
+            )}
+
+            {description && (
+              <p className="text-[14px] text-black/70 leading-relaxed break-words whitespace-pre-line">
+                {description}
+              </p>
+            )}
+
+            {tags.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {tags.map((t, i) => (
+                  <span
+                    key={`${t}-${i}`}
+                    className="text-[11px] font-medium px-2.5 py-1 rounded-full bg-white border border-black/10 text-black/60"
+                  >
+                    {t}
+                  </span>
+                ))}
+              </div>
+            )}
+
             <div className="flex flex-wrap gap-1.5">
               <span className={`${pillBg} text-[10px] font-bold tracking-widest uppercase px-2.5 py-1 rounded-full border-[1.5px] border-black`}>
-                {hat.hat_type}
+                {hatTypeLabel}
               </span>
               {category && (
                 <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-[#F5F3EF] border-[1.5px] border-black/10">
