@@ -151,8 +151,27 @@ export default function Showroom() {
     }
   }
 
+  // Guarded separately from loadShowroom() above: React.StrictMode (see
+  // main.jsx) double-invokes mount effects in dev, firing two overlapping
+  // requests. Without this guard, whichever one resolves last wins — even
+  // if it's the stale one — which is what caused the showroom to flash
+  // in with data then go blank. `cancelled` ensures only the response
+  // belonging to the current mount is ever applied.
   useEffect(() => {
-    loadShowroom()
+    let cancelled = false
+    ;(async () => {
+      try {
+        const data = await api.getShowroom()
+        if (!cancelled) setHats(data.hats || [])
+      } catch (e) {
+        if (!cancelled) console.error(e)
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   const filtered = hats.filter((h) => {
