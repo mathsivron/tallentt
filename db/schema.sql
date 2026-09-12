@@ -70,6 +70,7 @@ CREATE TABLE IF NOT EXISTS hats (
   rating DECIMAL DEFAULT 0,
   bookings INT DEFAULT 0,
   likes INT DEFAULT 0,
+  views INT DEFAULT 0, -- reel impressions, bumped once per viewer per page load
   comments_count INT DEFAULT 0,
   orbit_score INT DEFAULT 0, -- computed confidence score (see api/_lib/orbitScore.js) — NOT the category
   jobs_posted INT DEFAULT 0,
@@ -93,6 +94,15 @@ CREATE TABLE IF NOT EXISTS hat_media (
 );
 
 CREATE INDEX IF NOT EXISTS idx_hat_media_hat ON hat_media (hat_id);
+
+-- Tracks who liked what, so a like can be toggled and hats.likes (the
+-- denormalized counter used for sorting) never double-counts one user.
+CREATE TABLE IF NOT EXISTS hat_likes (
+  hat_id UUID REFERENCES hats(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  PRIMARY KEY (hat_id, user_id)
+);
 
 CREATE TABLE IF NOT EXISTS escrows (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -131,28 +141,4 @@ INSERT INTO categories (name) VALUES
   ('Tech & Digital Services'),
   ('Business, Admin & Professional Services'),
   ('Education & Training')
-ON CONFLICT (name) DO NOTHING;  user_id UUID REFERENCES users(id),
-  message TEXT,
-  masked BOOLEAN DEFAULT true,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Seed the 14 MECE Hats Categories (open taxonomy — custom entries also
--- get inserted here at hat-creation time, see api/categories/index.js).
-INSERT INTO categories (name) VALUES
-  ('Beauty & Grooming'),
-  ('Fashion & Styling'),
-  ('Photography & Videography'),
-  ('Music & Audio'),
-  ('Performing Arts & Entertainment'),
-  ('Visual Arts, Design & Crafts'),
-  ('Modeling & Acting'),
-  ('Food & Catering'),
-  ('Events & Hospitality'),
-  ('Health, Wellness & Fitness'),
-  ('Home Services & Skilled Trades'),
-  ('Tech & Digital Services'),
-  ('Business, Admin & Professional Services'),
-  ('Education & Training')
 ON CONFLICT (name) DO NOTHING;
-

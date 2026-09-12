@@ -1,10 +1,12 @@
 import { query } from '../_lib/db.js'
+import { getSessionUser } from '../_lib/auth.js'
 import { json, methodNotAllowed } from '../_lib/http.js'
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') return methodNotAllowed(res, ['GET'])
 
   try {
+    const session = getSessionUser(req)
     const { rows: hats } = await query(
       `SELECT h.*, u.avatar_url as owner_avatar
        FROM hats h
@@ -25,10 +27,19 @@ export default async function handler(req, res) {
         mediaByHat[m.hat_id].push(m)
       }
     }
+    let likedSet = new Set()
+    if (session?.sub && ids.length) {
+      const { rows: likeRows } = await query(
+        `SELECT hat_id FROM hat_likes WHERE user_id = $1 AND hat_id = ANY($2::uuid[])`,
+        [session.sub, ids],
+      )
+      likedSet = new Set(likeRows.map((r) => r.hat_id))
+    }
     const curated = hats.map((h, i) => ({
       ...h,
       media: mediaByHat[h.id] || [],
       isHost: i === 0,
+      liked_by_me: likedSet.has(h.id),
     }))
 
     const { rows: categories } = await query(`SELECT id, name FROM categories ORDER BY name`)

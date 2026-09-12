@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, BookOpen, Clock, Heart, MapPin, Star } from 'lucide-react'
+import { ArrowLeft, BookOpen, Clock, Eye, Heart, MapPin, Star } from 'lucide-react'
 import { api } from '../lib/api'
 import AvailabilityBadge from '../components/AvailabilityBadge'
 
@@ -54,6 +54,10 @@ export default function TalentProfile() {
   const [error, setError] = useState('')
   const [activeMedia, setActiveMedia] = useState(0)
   const [booking, setBooking] = useState(false)
+  const [liked, setLiked] = useState(false)
+  const [likeCount, setLikeCount] = useState(0)
+  const [liking, setLiking] = useState(false)
+  const [viewCount, setViewCount] = useState(0)
 
   useEffect(() => {
     let cancelled = false
@@ -65,6 +69,10 @@ export default function TalentProfile() {
         if (!cancelled) {
           setHat(data.hat)
           setActiveMedia(0)
+          setLiked(!!data.hat.liked_by_me)
+          setLikeCount(data.hat.likes || 0)
+          setViewCount((data.hat.views || 0) + 1)
+          api.recordView(hatId).catch(() => {})
         }
       } catch (e) {
         if (!cancelled) setError(e.message || 'Could not load this profile.')
@@ -76,6 +84,22 @@ export default function TalentProfile() {
       cancelled = true
     }
   }, [hatId])
+
+  async function handleLike() {
+    if (liking) return
+    setLiking(true)
+    const next = !liked
+    setLiked(next)
+    setLikeCount((c) => c + (next ? 1 : -1))
+    try {
+      await api.toggleLike(hatId)
+    } catch (e) {
+      setLiked(!next)
+      setLikeCount((c) => c + (next ? -1 : 1))
+    } finally {
+      setLiking(false)
+    }
+  }
 
   async function handleBook() {
     if (!hat) return
@@ -201,8 +225,16 @@ export default function TalentProfile() {
             <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-[#F5F3EF] border-[1.5px] border-black/10 flex items-center gap-1">
               <Star size={11} className="text-amber-400 fill-amber-400" /> {Number(hat.rating || 0).toFixed(1)}
             </span>
+            <button
+              type="button"
+              onClick={handleLike}
+              aria-pressed={liked}
+              className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-[#F5F3EF] border-[1.5px] border-black/10 flex items-center gap-1"
+            >
+              <Heart size={11} className={liked ? 'fill-[#FF3B5C] text-[#FF3B5C]' : ''} /> {likeCount}
+            </button>
             <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-[#F5F3EF] border-[1.5px] border-black/10 flex items-center gap-1">
-              <Heart size={11} /> {hat.likes || 0}
+              <Eye size={11} /> {viewCount}
             </span>
           </div>
 

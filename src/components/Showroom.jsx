@@ -1,39 +1,68 @@
 import { useEffect, useRef, useState } from 'react'
-import { Plus, Search, Heart, MapPin } from 'lucide-react'
+import { Plus, Search, Heart, MapPin, Eye } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { api } from '../lib/api'
 import AvailabilityBadge from './AvailabilityBadge'
 import AddShowroomMedia from './AddShowroomMedia'
 
-// One full-screen reel slide — pulls its media, name, and motto straight
-// off the hat (same data BentoCard uses), autoplaying its video only while
-// it's the one in view. "Book Now" takes you to that person's profile
-// instead of booking directly from the reel.
-function ReelSlide({ hat }) {
+// One full-screen reel slide. Only plays its video while `active` — i.e.
+// it's the slide currently snapped into view — driven by a single shared
+// observer up in Showroom rather than one per slide, so exactly one video
+// plays at a time. Also fires a view once, and lets the viewer like it.
+function ReelSlide({ hat, active }) {
   const videoRef = useRef(null)
-  const slideRef = useRef(null)
+  const viewedRef = useRef(false)
   const media = hat.media?.[0]
+
+  const [liked, setLiked] = useState(!!hat.liked_by_me)
+  const [likeCount, setLikeCount] = useState(hat.likes || 0)
+  const [viewCount, setViewCount] = useState(hat.views || 0)
+  const [liking, setLiking] = useState(false)
+
+  useEffect(() => {
+    setLiked(!!hat.liked_by_me)
+    setLikeCount(hat.likes || 0)
+    setViewCount(hat.views || 0)
+  }, [hat.id, hat.liked_by_me, hat.likes, hat.views])
 
   useEffect(() => {
     const video = videoRef.current
-    const slide = slideRef.current
-    if (!video || !slide) return
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          video.play().catch(() => {})
-        } else {
-          video.pause()
-        }
-      },
-      { threshold: 0.6 },
-    )
-    observer.observe(slide)
-    return () => observer.disconnect()
-  }, [])
+    if (active) {
+      if (!viewedRef.current) {
+        viewedRef.current = true
+        setViewCount((v) => v + 1)
+        api.recordView(hat.id).catch(() => {})
+      }
+      if (video) {
+        // React's `muted` JSX prop sets the attribute but doesn't always
+        // sync the live DOM property in time — browsers check the live
+        // property before allowing autoplay, so set it explicitly here.
+        video.muted = true
+        video.play().catch(() => {})
+      }
+    } else if (video) {
+      video.pause()
+    }
+  }, [active, hat.id])
+
+  async function handleLike() {
+    if (liking) return
+    setLiking(true)
+    const next = !liked
+    setLiked(next)
+    setLikeCount((c) => c + (next ? 1 : -1))
+    try {
+      await api.toggleLike(hat.id)
+    } catch (e) {
+      setLiked(!next)
+      setLikeCount((c) => c + (next ? -1 : 1))
+    } finally {
+      setLiking(false)
+    }
+  }
 
   return (
-    <div ref={slideRef} className="reel-slide">
+    <div data-hat-id={hat.id} className="reel-slide">
       {media?.url ? (
         media.type === 'video' ? (
           <video
@@ -43,6 +72,7 @@ function ReelSlide({ hat }) {
             muted
             loop
             playsInline
+            preload="metadata"
           />
         ) : (
           <img src={media.url} alt="" className="absolute inset-0 w-full h-full object-cover" />
@@ -84,8 +114,16 @@ function ReelSlide({ hat }) {
           >
             Book Now
           </Link>
-          <span className="flex items-center gap-1 text-[12px] font-medium">
-            <Heart size={14} /> {hat.likes || 0}
+          <button
+            type="button"
+            onClick={handleLike}
+            className="flex items-center gap-1 text-[12px] font-medium"
+            aria-pressed={liked}
+          >
+            <Heart size={16} className={liked ? 'fill-[#FF3B5C] text-[#FF3B5C]' : ''} /> {likeCount}
+          </button>
+          <span className="flex items-center gap-1 text-[12px] font-medium text-white/70">
+            <Eye size={14} /> {viewCount}
           </span>
         </div>
       </div>
@@ -95,20 +133,17 @@ function ReelSlide({ hat }) {
 
 export default function Showroom() {
   const [hats, setHats] = useState([])
-  const [categories, setCategories] = useState([])
-  const [filter, setFilter] = useState('All')
   const [search, setSearch] = useState('')
   const [availableOnly, setAvailableOnly] = useState(false)
   const [loading, setLoading] = useState(true)
-  const [customCategory, setCustomCategory] = useState('')
-  const [adding, setAdding] = useState(false)
   const [showAdd, setShowAdd] = useState(false)
+  const [activeIndex, setActiveIndex] = useState(0)
+  const containerRef = useRef(null)
 
   async function loadShowroom() {
     try {
       const data = await api.getShowroom()
       setHats(data.hats || [])
-      setCategories(data.categories || [])
     } catch (e) {
       console.error(e)
     } finally {
@@ -122,12 +157,6 @@ export default function Showroom() {
 
   const filtered = hats.filter((h) => {
     if (availableOnly && !h.availability) return false
-    if (
-      filter !== 'All' &&
-      h.category !== filter &&
-      !(h.category || '').toLowerCase().includes(filter.toLowerCase())
-    )
-      return false
     if (search) {
       const q = search.toLowerCase()
       const match =
@@ -139,20 +168,34 @@ export default function Showroom() {
     return true
   })
 
-  async function addCategory() {
-    if (!customCategory.trim()) return
-    setAdding(true)
-    try {
-      const { category } = await api.createCategory(customCategory.trim())
-      setCategories((prev) => [...prev, category].sort((a, b) => a.name.localeCompare(b.name)))
-      setCustomCategory('')
-      setFilter(category.name)
-    } catch (e) {
-      alert(e.message)
-    } finally {
-      setAdding(false)
-    }
-  }
+  // Filters/search reshuffle which slide is "first" — snap back to it.
+  useEffect(() => {
+    setActiveIndex(0)
+    containerRef.current?.scrollTo({ top: 0 })
+  }, [search, availableOnly])
+
+  // One observer watching every slide at once decides which single index
+  // is "active" (i.e. snapped fully into view) — that's what drives which
+  // video plays and which slide counts as viewed.
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+    const slides = Array.from(container.querySelectorAll('[data-hat-id]'))
+    if (!slides.length) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries.filter((e) => e.isIntersecting)
+        if (!visible.length) return
+        const top = visible.reduce((a, b) => (b.intersectionRatio > a.intersectionRatio ? b : a))
+        const idx = slides.indexOf(top.target)
+        if (idx !== -1) setActiveIndex(idx)
+      },
+      { root: container, threshold: [0.6] },
+    )
+    slides.forEach((s) => observer.observe(s))
+    return () => observer.disconnect()
+  }, [hats, search, availableOnly])
 
   return (
     <div className="space-y-5">
@@ -169,7 +212,7 @@ export default function Showroom() {
             onClick={() => setShowAdd(true)}
             className="h-10 px-4 rounded-full bg-[#0A13E6] text-white text-[13px] font-semibold border-[1.5px] border-black shadow-[0_4px_12px_rgba(10,19,230,0.25)] hover:bg-black transition flex items-center gap-1.5 shrink-0"
           >
-            <Plus size={15} /> Add
+            <Plus size={15} /> Add Spotlight
           </button>
           <div className="relative flex-1 sm:w-64">
             <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-black/40" />
@@ -193,59 +236,14 @@ export default function Showroom() {
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2 items-center">
-        <button
-          type="button"
-          onClick={() => setFilter('All')}
-          className={`px-3.5 py-1.5 rounded-full text-[12px] font-semibold border-[1.5px] transition ${
-            filter === 'All'
-              ? 'bg-[#0A13E6] text-white border-black shadow'
-              : 'bg-white border-black/15 text-black/70 hover:border-black hover:text-black'
-          }`}
-        >
-          All
-        </button>
-        {categories.map((c) => (
-          <button
-            key={c.id}
-            type="button"
-            onClick={() => setFilter(c.name)}
-            className={`px-3.5 py-1.5 rounded-full text-[12px] font-semibold border-[1.5px] transition ${
-              filter === c.name
-                ? 'bg-[#0A13E6] text-white border-black shadow'
-                : 'bg-white border-black/15 text-black/70'
-            }`}
-          >
-            {c.name}
-          </button>
-        ))}
-        <div className="flex items-center gap-1.5 ml-1">
-          <input
-            value={customCategory}
-            onChange={(e) => setCustomCategory(e.target.value)}
-            placeholder="Custom category"
-            className="px-3 h-8 rounded-full border-[1.5px] border-black/15 bg-white text-[12px] font-medium w-32 outline-none focus:border-black"
-          />
-          <button
-            type="button"
-            disabled={adding}
-            onClick={addCategory}
-            className="w-8 h-8 rounded-full bg-white border-[1.5px] border-black flex items-center justify-center hover:bg-black hover:text-white transition"
-            title="Add custom category"
-          >
-            <Plus size={14} />
-          </button>
-        </div>
-      </div>
-
       {loading ? (
         <p className="text-black/40 py-16 text-center text-[13px] font-medium">Loading showroom…</p>
       ) : filtered.length === 0 ? (
         <p className="text-black/40 py-16 text-center text-[13px] font-medium">No talents match your filters.</p>
       ) : (
-        <div className="reel-container">
-          {filtered.map((h) => (
-            <ReelSlide key={h.id} hat={h} />
+        <div className="reel-container" ref={containerRef}>
+          {filtered.map((h, i) => (
+            <ReelSlide key={h.id} hat={h} active={i === activeIndex} />
           ))}
         </div>
       )}
