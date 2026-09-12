@@ -6,7 +6,15 @@ import { HAT_TYPES, DELIVERY_MODES, normalizePricing } from '../_lib/hatFields.j
 
 async function getHat(id, viewerId) {
   const { rows } = await query(
-    `SELECT h.*, u.avatar_url as owner_avatar
+    `SELECT h.*,
+            u.avatar_url as owner_avatar,
+            u.full_name as owner_full_name,
+            u.username as owner_username,
+            u.role as owner_role,
+            u.bio as owner_bio,
+            u.location as owner_location,
+            u.lga as owner_lga,
+            u.country as owner_country
      FROM hats h LEFT JOIN users u ON u.id = h.user_id WHERE h.id = $1`,
     [id],
   )
@@ -32,6 +40,79 @@ async function getHat(id, viewerId) {
   return { ...rows[0], media, confidence: rows[0].orbit_score, liked_by_me: likedByMe }
 }
 
+// Builds the normalized card-detail shape BentoCardDetailModal needs. This
+// is purely a mapped/derived view over the same hats + users data getHat()
+// already fetches (plus a check against the existing escrows table) — no
+// new tables or columns. Only returned for ?include=owner so the legacy
+// `{ hat }` shape below stays untouched for existing consumers (HatForm,
+// TalentProfile, Showroom, etc).
+async function buildCardDetail(hat, viewerId) {
+  const location = [hat.lga, hat.country].filter(Boolean).join(', ') || null
+  const ownerLocation =
+    hat.owner_location || [hat.owner_lga, hat.owner_country].filter(Boolean).join(', ') || null
+  const rawBio = hat.owner_bio || ''
+  const bioShort = rawBio ? (rawBio.length > 140 ? rawBio.slice(0, 140) + '…' : rawBio) : null
+
+  // "Booked" reuses the existing escrows system — a client with a
+  // secured/released escrow against this hat has effectively booked it.
+  // There's no separate bookings table to invent here.
+  let hasBooked = false
+  if (viewerId) {
+    try {
+      const { rows } = await query(
+        `SELECT 1 FROM escrows WHERE hat_id = $1 AND client_id = $2 AND status IN ('secured','released') LIMIT 1`,
+        [hat.id, viewerId],
+      )
+      hasBooked = rows.length > 0
+    } catch (err) {
+      console.error('has_booked lookup failed:', err)
+    }
+  }
+
+  return {
+    id: hat.id,
+    title: hat.hat_title,
+    // hats has no dedicated long-form description column — motto is the
+    // closest existing free-text field tied to the card, so it's reused
+    // here rather than adding a new one.
+    description: hat.motto || null,
+    media: (hat.media || []).map((m) => ({ url: m.url, type: m.type, caption: m.caption || null })),
+    tags: hat.skills || [],
+    category: hat.category || null,
+    budget: {
+      type: hat.price_type,
+      currency: hat.currency || 'NGN',
+      amount: hat.price_type === 'fixed' ? hat.rate ?? null : null,
+      min: hat.price_type === 'range' ? hat.price_min ?? null : null,
+      max: hat.price_type === 'range' ? hat.price_max ?? null : null,
+      unit: hat.rate_unit === 'custom' ? hat.rate_unit_custom : hat.rate_unit || null,
+      negotiable: Boolean(hat.price_negotiable),
+    },
+    location,
+    created_at: hat.created_at,
+    owner: {
+      id: hat.user_id,
+      name: hat.owner_full_name || hat.username,
+      avatar_url: hat.owner_avatar || null,
+      // The hat's own role (talent/client) — not the account-level role,
+      // which can be 'dual' — since this is what the frontend already
+      // uses to decide Book vs Apply (see BentoCard's `isTalent`).
+      role: hat.role,
+      handle: hat.owner_username || hat.username,
+      is_verified: Boolean(hat.is_verified),
+      // No reviews system exists — hat.rating is the only rating data on
+      // file, and review_count safely defaults to 0 rather than inventing one.
+      rating: Number(hat.rating || 0),
+      review_count: 0,
+      location: ownerLocation,
+      bio_short: bioShort,
+    },
+    // No applications system exists yet — safe default, not a new one.
+    has_applied: false,
+    has_booked: hasBooked,
+  }
+}
+
 export default async function handler(req, res) {
   const id = req.query?.id || (req.url.match(/\/api\/hats\/([^/?]+)/) || [])[1]
   if (!id) return json(res, 400, { error: 'Missing id' })
@@ -41,6 +122,22 @@ export default async function handler(req, res) {
       const session = getSessionUser(req)
       const hat = await getHat(id, session?.sub)
       if (!hat) return json(res, 404, { error: 'Hat not found' })
+
+      // GET /api/hats/:id?include=owner — normalized shape for
+      // BentoCardDetailModal. Extends this same endpoint rather than
+      // adding a parallel one; plain GET keeps returning the legacy
+      // `{ hat }` shape existing consumers already depend on.
+      const url = new URL(req.url, `http://${req.headers.host}`)
+      const include = (url.searchParams.get('include') || '')
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)
+
+      if (include.includes('owner')) {
+        const card = await buildCardDetail(hat, session?.sub)
+        return json(res, 200, card)
+      }
+
       return json(res, 200, { hat })
     } catch (err) {
       console.error(err)
