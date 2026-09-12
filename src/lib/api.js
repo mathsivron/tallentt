@@ -33,6 +33,9 @@ export const api = {
     return request(`/api/hats${q ? `?${q}` : ''}`)
   },
   getHat: (id) => request(`/api/hats/${id}`),
+  // Normalized card-detail shape for BentoCardDetailModal — same endpoint,
+  // extended with ?include=owner (see api/hats/[id].js buildCardDetail).
+  getHatDetail: (id) => request(`/api/hats/${id}?include=owner`),
   createHat: (body) => request('/api/hats', { method: 'POST', body: JSON.stringify(body) }),
   updateHat: (id, body) => request(`/api/hats/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   deleteHat: (id) => request(`/api/hats/${id}`, { method: 'DELETE' }),
