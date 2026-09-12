@@ -112,15 +112,16 @@ function Avatar({ src, name, className = 'w-12 h-12' }) {
   )
 }
 
-// Wraps the owner identity in the app's existing hat-detail route
-// (`/talent/:hatId` — see Showroom.jsx's identical `Link to={`/talent/${hat.id}`}`)
-// so clicking it reuses the app's existing profile-navigation mechanism
-// instead of introducing a new one. Falls back to a plain span if there's
-// no valid card id to link to.
-function OwnerLink({ cardId, className, children }) {
+// Wraps the owner identity (avatar and/or username) in the app's existing
+// hat-detail route (`/talent/:hatId` — see Showroom.jsx's identical
+// `Link to={`/talent/${hat.id}`}`) so clicking either reuses the app's
+// existing profile-navigation mechanism instead of introducing a new one.
+// Falls back to a plain, non-interactive span if there's no valid card id
+// to link to, so an unresolved owner never produces a broken destination.
+function OwnerLink({ cardId, className, ariaLabel, children }) {
   if (!cardId) return <span className={className}>{children}</span>
   return (
-    <Link to={`/talent/${cardId}`} className={className}>
+    <Link to={`/talent/${cardId}`} className={className} aria-label={ariaLabel}>
       {children}
     </Link>
   )
@@ -299,7 +300,13 @@ export default function BentoCardDetailModal({ hat, escrow, showMedia = true, on
                 below via the surface background, matching the app's
                 existing muted-panel convention (used for pills, media bg). */}
             <div className="flex items-center gap-3 min-w-0 bg-[#F5F3EF] border-[1.5px] border-black/10 rounded-2xl p-3">
-              <Avatar src={avatarSrc} name={displayName} className="w-11 h-11" />
+              <OwnerLink
+                cardId={cardId}
+                className="shrink-0"
+                ariaLabel={displayName ? `View ${displayName}'s profile` : undefined}
+              >
+                <Avatar src={avatarSrc} name={displayName} className="w-11 h-11" />
+              </OwnerLink>
               <div className="min-w-0 flex-1">
                 {displayName ? (
                   <OwnerLink cardId={cardId} className="text-[13px] font-semibold flex items-center gap-1 truncate hover:underline w-fit">
