@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { MapPin, Clock, X, BookOpen, Send, Lock, Unlock, AlertCircle } from 'lucide-react'
+import { MapPin, Clock, X, BookOpen, Send, Lock, Unlock, AlertCircle, Play, ImageOff } from 'lucide-react'
 import { api } from '../lib/api'
 
 const fmtMoney = (n, currency = 'NGN') => {
@@ -182,6 +182,20 @@ export default function BentoCardDetailModal({ hat, escrow, showMedia = true, on
   const [status, setStatus] = useState(cardId ? 'loading' : 'idle')
   const [errorMessage, setErrorMessage] = useState(null)
 
+  // Which of this card's media items is shown in the main viewer, and
+  // which indices have failed to load (per-item, so one broken item
+  // doesn't take out the whole gallery). Reset whenever the modal is
+  // pointed at a different card.
+  const [activeMediaIndex, setActiveMediaIndex] = useState(0)
+  const [brokenMedia, setBrokenMedia] = useState(() => new Set())
+  const markMediaBroken = useCallback((idx) => {
+    setBrokenMedia((prev) => (prev.has(idx) ? prev : new Set(prev).add(idx)))
+  }, [])
+  useEffect(() => {
+    setActiveMediaIndex(0)
+    setBrokenMedia(new Set())
+  }, [cardId])
+
   // Tracks the most recently *issued* request so a slow, older response
   // (e.g. Card A) can't overwrite a newer one (Card B) if the user opens
   // cards in quick succession while this component stays mounted.
@@ -232,7 +246,20 @@ export default function BentoCardDetailModal({ hat, escrow, showMedia = true, on
 
   const isTalent = (owner?.role ?? hat.role) === 'talent'
   const pillBg = isTalent ? 'bg-[#0A13E6] text-white' : 'bg-black text-white'
-  const media = loaded ? detail.media?.[0] : hat.media?.[0]
+  // Both the feed's partial hat and the full detail carry the same shape:
+  // an ordered array of { url, type, caption }, newest first (see
+  // AddShowroomMedia's "prepend to front" comment). Drop entries with no
+  // url up front — those can never render anything, image/video error
+  // handlers below cover urls that are present but fail to load.
+  const rawMedia = loaded ? detail.media : hat.media
+  const mediaItems = Array.isArray(rawMedia) ? rawMedia.filter((m) => m?.url) : []
+  const hasMedia = mediaItems.length > 0
+  // Clamp defensively in case the list is ever shorter than the last
+  // selected index (e.g. the fuller detail response has fewer items than
+  // the feed card did).
+  const safeMediaIndex = hasMedia ? Math.min(activeMediaIndex, mediaItems.length - 1) : 0
+  const activeMedia = hasMedia ? mediaItems[safeMediaIndex] : null
+  const activeMediaBroken = brokenMedia.has(safeMediaIndex)
   // Username is the app's identity — never the owner's full name (see
   // owner.name in api/hats/[id].js, which is full-name-or-username and is
   // intentionally not used here).
@@ -282,15 +309,84 @@ export default function BentoCardDetailModal({ hat, escrow, showMedia = true, on
 
         <div className={showMedia ? 'grid md:grid-cols-2 gap-0 min-h-0' : 'min-h-0'}>
           {showMedia && (
-            <div className="modal-media bg-[#F5F3EF] min-h-[240px] border-b-[1.5px] md:border-b-0 md:border-r-[1.5px] border-black">
-              {media?.url ? (
-                media.type === 'video' ? (
-                  <video src={media.url} controls className="w-full h-full object-contain max-h-[70vh]" />
+            <div className="modal-media bg-[#F5F3EF] min-h-[240px] border-b-[1.5px] md:border-b-0 md:border-r-[1.5px] border-black flex flex-col">
+              <div className="relative flex-1 min-h-0 flex items-center justify-center">
+                {hasMedia && !activeMediaBroken ? (
+                  activeMedia.type === 'video' ? (
+                    <video
+                      key={activeMedia.url}
+                      src={activeMedia.url}
+                      controls
+                      className="w-full h-full object-contain max-h-[70vh]"
+                      aria-label={activeMedia.caption || `${displayName || 'Portfolio'} video`}
+                      onError={() => markMediaBroken(safeMediaIndex)}
+                    />
+                  ) : (
+                    <img
+                      key={activeMedia.url}
+                      src={activeMedia.url}
+                      alt={activeMedia.caption || (displayName ? `${displayName}'s work` : 'Portfolio media')}
+                      className="w-full h-full object-contain max-h-[70vh]"
+                      onError={() => markMediaBroken(safeMediaIndex)}
+                    />
+                  )
                 ) : (
-                  <img src={media.url} alt="" className="w-full h-full object-contain max-h-[70vh]" />
-                )
-              ) : (
-                <div className="flex items-center justify-center h-64 text-black/30 text-[13px]">No portfolio</div>
+                  <div className="flex items-center justify-center h-64 text-black/30 text-[13px]">
+                    {hasMedia ? 'This media couldn\u2019t be loaded' : 'No portfolio'}
+                  </div>
+                )}
+              </div>
+
+              {mediaItems.length > 1 && (
+                <div
+                  role="tablist"
+                  aria-label="Portfolio media"
+                  className="flex gap-1.5 p-2 overflow-x-auto shrink-0 border-t-[1.5px] border-black/10 bg-white/60"
+                >
+                  {mediaItems.map((m, idx) => {
+                    const broken = brokenMedia.has(idx)
+                    const selected = idx === safeMediaIndex
+                    return (
+                      <button
+                        key={`${m.url}-${idx}`}
+                        type="button"
+                        role="tab"
+                        aria-selected={selected}
+                        aria-label={`View ${m.type === 'video' ? 'video' : 'photo'} ${idx + 1} of ${mediaItems.length}`}
+                        onClick={() => setActiveMediaIndex(idx)}
+                        className={`relative shrink-0 w-14 h-14 rounded-lg overflow-hidden border-[1.5px] transition ${
+                          selected ? 'border-[#0A13E6]' : 'border-black/10 hover:border-black/30'
+                        }`}
+                      >
+                        {broken ? (
+                          <div className="w-full h-full flex items-center justify-center bg-[#F5F3EF] text-black/25">
+                            <ImageOff size={14} />
+                          </div>
+                        ) : m.type === 'video' ? (
+                          <div className="relative w-full h-full bg-black">
+                            <video
+                              src={m.url}
+                              className="w-full h-full object-cover opacity-70"
+                              muted
+                              playsInline
+                              preload="metadata"
+                              onError={() => markMediaBroken(idx)}
+                            />
+                            <Play size={12} className="absolute inset-0 m-auto text-white" fill="white" />
+                          </div>
+                        ) : (
+                          <img
+                            src={m.url}
+                            alt=""
+                            loading="lazy"
+                            className="w-full h-full object-cover"
+                            onError={() => markMediaBroken(idx)}
+                          />
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
               )}
             </div>
           )}
