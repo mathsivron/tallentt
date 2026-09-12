@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react'
-import { Heart, MapPin, Star, X, BookOpen, Send, Lock, Unlock, Clock } from 'lucide-react'
+import { useState } from 'react'
+import { Heart, MapPin, Star, Clock } from 'lucide-react'
+import BentoCardDetailModal from './BentoCardDetailModal'
 
 const fmtMoney = (n, currency = 'NGN') => {
   if (n == null) return '—'
@@ -80,20 +81,6 @@ function Avatar({ src, name, className = 'w-12 h-12' }) {
 export default function BentoCard({ hat, onBook, onApply, escrow, showMedia = true }) {
   const [open, setOpen] = useState(false)
 
-  // Lock body scroll on Android/iOS while modal is open
-  useEffect(() => {
-    if (!open) return
-    const scrollY = window.scrollY
-    document.documentElement.classList.add('modal-open')
-    document.body.classList.add('modal-open')
-    document.body.style.top = `-${scrollY}px`
-    return () => {
-      document.documentElement.classList.remove('modal-open')
-      document.body.classList.remove('modal-open')
-      document.body.style.top = ''
-      window.scrollTo(0, scrollY)
-    }
-  }, [open])
   const isTalent = hat.role === 'talent'
   const pillBg = isTalent ? 'bg-[#0A13E6] text-white' : 'bg-black text-white'
   const media = hat.media?.[0]
@@ -230,121 +217,15 @@ export default function BentoCard({ hat, onBook, onApply, escrow, showMedia = tr
 
       {/* Detail modal — full-screen on Android ≤768px */}
       {open && (
-        <div
-          className="modal-overlay md:p-4"
-          role="dialog"
-          aria-modal="true"
-          onClick={() => setOpen(false)}
-        >
-          <div
-            className="modal-panel animate-slide-up"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              type="button"
-              className="modal-close absolute top-3 right-3 z-10 w-9 h-9 rounded-full bg-[#F5F3EF] border-[1.5px] border-black flex items-center justify-center hover:bg-black hover:text-white transition"
-              onClick={() => setOpen(false)}
-              aria-label="Close"
-            >
-              <X size={16} />
-            </button>
-
-            <div className={showMedia ? 'grid md:grid-cols-2 gap-0 min-h-0' : 'min-h-0'}>
-              {showMedia && (
-                <div className="modal-media bg-[#F5F3EF] min-h-[240px] border-b-[1.5px] md:border-b-0 md:border-r-[1.5px] border-black">
-                  {media?.url ? (
-                    media.type === 'video' ? (
-                      <video src={media.url} controls className="w-full h-full object-contain max-h-[70vh]" />
-                    ) : (
-                      <img src={media.url} alt="" className="w-full h-full object-contain max-h-[70vh]" />
-                    )
-                  ) : (
-                    <div className="flex items-center justify-center h-64 text-black/30 text-[13px]">No portfolio</div>
-                  )}
-                </div>
-              )}
-
-              <div className="p-5 md:p-6 space-y-4">
-                <div className="flex items-center gap-3">
-                  <Avatar src={hat.owner_avatar || hat.avatar_url} name={hat.username} className="w-14 h-14" />
-                  <div>
-                    <h2 className="text-[18px] font-bold flex items-center gap-1.5 leading-tight">
-                      {hat.username}
-                      {hat.is_verified && <span className="text-[#0A13E6]">✓</span>}
-                    </h2>
-                    <p className="text-[13px] text-black/60">{hat.hat_title}</p>
-                    {motto && (
-                      <p className="text-[13px] text-black/80 italic leading-snug mt-1">"{motto}"</p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap gap-1.5">
-                  <span className={`${pillBg} text-[10px] font-bold tracking-widest uppercase px-2.5 py-1 rounded-full border-[1.5px] border-black`}>
-                    {hat.hat_type}
-                  </span>
-                  {hat.category && (
-                    <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-[#F5F3EF] border-[1.5px] border-black/10">
-                      {hat.category}
-                    </span>
-                  )}
-                  {hat.delivery_mode && (
-                    <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-[#F5F3EF] border-[1.5px] border-black/10">
-                      {hat.delivery_mode}
-                    </span>
-                  )}
-                  {location && (
-                    <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-[#F5F3EF] border-[1.5px] border-black/10 flex items-center gap-1" title="Talent location">
-                      <MapPin size={11} /> {location}
-                    </span>
-                  )}
-                  {availabilityWindow && (
-                    <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-[#F5F3EF] border-[1.5px] border-black/10 flex items-center gap-1" title="Daily availability window">
-                      <Clock size={11} /> {availabilityWindow}
-                    </span>
-                  )}
-                </div>
-
-                <p className="text-[16px] font-bold">{formatPrice(hat, currency)}</p>
-
-                <EscrowBadge hat={hat} escrow={escrow} />
-
-                <div className="flex gap-2 pt-1">
-                  <button
-                    type="button"
-                    className={`flex-1 h-12 rounded-full text-white font-semibold text-[14px] border-[1.5px] border-black flex items-center justify-center gap-2 shadow-[0_4px_12px_rgba(10,19,230,0.25)] hover:bg-black transition ${
-                      isTalent ? 'bg-[#0A13E6]' : 'bg-black'
-                    }`}
-                    onClick={() => (isTalent ? onBook?.(hat) : onApply?.(hat))}
-                  >
-                    {isTalent ? <BookOpen size={16} /> : <Send size={16} />}
-                    {isTalent ? 'Book Talent' : 'Apply'}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <BentoCardDetailModal
+          hat={hat}
+          escrow={escrow}
+          showMedia={showMedia}
+          onClose={() => setOpen(false)}
+          onBook={onBook}
+          onApply={onApply}
+        />
       )}
     </>
-  )
-}
-
-function EscrowBadge({ hat, escrow }) {
-  const funded = escrow?.status === 'secured' || escrow?.status === 'released'
-  const fallback = hat.price_type === 'range' ? hat.price_min : hat.rate
-  const amount = escrow?.amount ?? fallback ?? 0
-
-  if (funded) {
-    return (
-      <div className="escrow-secured inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-[#E8FFE6] text-[#0A7A00] text-[12px] font-semibold border-[1.5px] border-[#0A7A00]/20">
-        <Unlock size={14} /> ₦{Number(amount).toLocaleString()} Secured • Contacts Unlocked
-      </div>
-    )
-  }
-  return (
-    <div className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-[#E6F0FF] text-[#0A13E6] text-[12px] font-semibold border-[1.5px] border-[#0A13E6]/20">
-      <Lock size={14} /> Escrow: Not Funded • Contacts Locked
-    </div>
   )
 }
