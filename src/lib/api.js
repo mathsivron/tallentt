@@ -36,7 +36,10 @@ export const api = {
   createHat: (body) => request('/api/hats', { method: 'POST', body: JSON.stringify(body) }),
   updateHat: (id, body) => request(`/api/hats/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   deleteHat: (id) => request(`/api/hats/${id}`, { method: 'DELETE' }),
-
+  recordView: (id) =>
+  request(`/api/hats/${id}`, { method: 'PATCH', body: JSON.stringify({ action: 'view' }) }),
+  toggleLike: (id) =>
+  request(`/api/hats/${id}`, { method: 'PATCH', body: JSON.stringify({ action: 'like' }) }),
   getShowroom: () => request('/api/showroom'),
   getCategories: () => request('/api/categories'),
   createCategory: (name) => request('/api/categories', { method: 'POST', body: JSON.stringify({ name }) }),
