@@ -1,23 +1,41 @@
 import { useEffect, useRef, useState } from 'react'
-import { Plus, Search, Heart, MapPin, Eye } from 'lucide-react'
+import { Plus, Search, Heart, MapPin, Eye, Play, Pause, Volume2, VolumeX, Maximize2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { api } from '../lib/api'
 import AvailabilityBadge from './AvailabilityBadge'
 import AddShowroomMedia from './AddShowroomMedia'
 
+function formatTime(seconds) {
+  if (!Number.isFinite(seconds) || seconds < 0) return '0:00'
+  const m = Math.floor(seconds / 60)
+  const s = Math.floor(seconds % 60)
+  return `${m}:${s.toString().padStart(2, '0')}`
+}
+
 // One full-screen reel slide. Only plays its video while `active` — i.e.
 // it's the slide currently snapped into view — driven by a single shared
 // observer up in Showroom rather than one per slide, so exactly one video
 // plays at a time. Also fires a view once, and lets the viewer like it.
-function ReelSlide({ hat, active }) {
+//
+// `muted` / `onSetMuted` are lifted to the parent so the mute preference
+// carries across slides as the user scrolls, matching typical reel UX.
+function ReelSlide({ hat, active, muted, onSetMuted }) {
   const videoRef = useRef(null)
+  const slideRef = useRef(null)
+  const progressRef = useRef(null)
   const viewedRef = useRef(false)
   const media = hat.media?.[0]
+  const isVideo = media?.type === 'video' && !!media?.url
 
   const [liked, setLiked] = useState(!!hat.liked_by_me)
   const [likeCount, setLikeCount] = useState(hat.likes || 0)
   const [viewCount, setViewCount] = useState(hat.views || 0)
   const [liking, setLiking] = useState(false)
+
+  const [playing, setPlaying] = useState(false)
+  const [duration, setDuration] = useState(0)
+  const [currentTime, setCurrentTime] = useState(0)
+  const [isFullscreen, setIsFullscreen] = useState(false)
 
   useEffect(() => {
     setLiked(!!hat.liked_by_me)
@@ -27,6 +45,7 @@ function ReelSlide({ hat, active }) {
 
   useEffect(() => {
     const video = videoRef.current
+    if (!isVideo) return
     if (active) {
       if (!viewedRef.current) {
         viewedRef.current = true
@@ -34,16 +53,71 @@ function ReelSlide({ hat, active }) {
         api.recordView(hat.id).catch(() => {})
       }
       if (video) {
-        // React's `muted` JSX prop sets the attribute but doesn't always
-        // sync the live DOM property in time — browsers check the live
-        // property before allowing autoplay, so set it explicitly here.
-        video.muted = true
-        video.play().catch(() => {})
+        // Try to honor the shared mute preference (which defaults to
+        // unmuted, so videos keep their original audio by default). If the
+        // browser blocks autoplay-with-sound, fall back to muted autoplay
+        // and let the user unmute via the control — never get stuck silent
+        // forever, and never force `muted` permanently in markup.
+        video.muted = muted
+        const playPromise = video.play()
+        if (playPromise?.catch) {
+          playPromise.catch(() => {
+            if (!video.muted) {
+              video.muted = true
+              onSetMuted(true)
+              video.play().catch(() => {})
+            }
+          })
+        }
       }
     } else if (video) {
       video.pause()
     }
-  }, [active, hat.id])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, hat.id, isVideo])
+
+  // Keep the live element in sync whenever the shared mute preference
+  // changes (e.g. user taps unmute on any slide).
+  useEffect(() => {
+    const video = videoRef.current
+    if (video) video.muted = muted
+  }, [muted])
+
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video) return
+    const onTime = () => setCurrentTime(video.currentTime)
+    const onMeta = () => setDuration(video.duration || 0)
+    const onPlay = () => setPlaying(true)
+    const onPause = () => setPlaying(false)
+    video.addEventListener('timeupdate', onTime)
+    video.addEventListener('loadedmetadata', onMeta)
+    video.addEventListener('durationchange', onMeta)
+    video.addEventListener('play', onPlay)
+    video.addEventListener('pause', onPause)
+    video.addEventListener('ended', onPause)
+    return () => {
+      video.removeEventListener('timeupdate', onTime)
+      video.removeEventListener('loadedmetadata', onMeta)
+      video.removeEventListener('durationchange', onMeta)
+      video.removeEventListener('play', onPlay)
+      video.removeEventListener('pause', onPause)
+      video.removeEventListener('ended', onPause)
+    }
+  }, [media?.url])
+
+  useEffect(() => {
+    const onFsChange = () => {
+      const fsEl = document.fullscreenElement || document.webkitFullscreenElement || null
+      setIsFullscreen(!!fsEl && (fsEl === slideRef.current || fsEl === videoRef.current))
+    }
+    document.addEventListener('fullscreenchange', onFsChange)
+    document.addEventListener('webkitfullscreenchange', onFsChange)
+    return () => {
+      document.removeEventListener('fullscreenchange', onFsChange)
+      document.removeEventListener('webkitfullscreenchange', onFsChange)
+    }
+  }, [])
 
   async function handleLike() {
     if (liking) return
@@ -61,18 +135,50 @@ function ReelSlide({ hat, active }) {
     }
   }
 
+  function togglePlay() {
+    const video = videoRef.current
+    if (!video) return
+    if (video.paused) video.play().catch(() => {})
+    else video.pause()
+  }
+
+  function handleSeek(e) {
+    const track = progressRef.current
+    const video = videoRef.current
+    if (!track || !video || !duration) return
+    const rect = track.getBoundingClientRect()
+    const ratio = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width))
+    video.currentTime = ratio * duration
+    setCurrentTime(video.currentTime)
+  }
+
+  function handleFullscreen() {
+    const video = videoRef.current
+    if (!video) return
+    // iOS Safari only supports native fullscreen on the <video> element
+    // itself — arbitrary-element Fullscreen API isn't available there.
+    if (video.webkitEnterFullscreen) {
+      video.webkitEnterFullscreen()
+      return
+    }
+    const target = slideRef.current || video
+    const request =
+      target.requestFullscreen || target.webkitRequestFullscreen || target.msRequestFullscreen
+    if (request) request.call(target)
+  }
+
   return (
-    <div data-hat-id={hat.id} className="reel-slide">
+    <div ref={slideRef} data-hat-id={hat.id} className="reel-slide">
       {media?.url ? (
-        media.type === 'video' ? (
+        isVideo ? (
           <video
             ref={videoRef}
             src={media.url}
-            className="absolute inset-0 w-full h-full object-cover"
-            muted
+            className={`absolute inset-0 w-full h-full ${isFullscreen ? 'object-contain' : 'object-cover'}`}
             loop
             playsInline
             preload="metadata"
+            onClick={togglePlay}
           />
         ) : (
           <img src={media.url} alt="" className="absolute inset-0 w-full h-full object-cover" />
@@ -90,9 +196,64 @@ function ReelSlide({ hat, active }) {
           Showroom Host
         </span>
       )}
-      <AvailabilityBadge available={hat.availability} className="absolute top-3 right-3 z-10" />
+
+      <div className="absolute top-3 right-3 z-10 flex flex-col items-end gap-1.5">
+        <AvailabilityBadge available={hat.availability} />
+        {isVideo && (
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => onSetMuted(!muted)}
+              aria-label={muted ? 'Unmute video' : 'Mute video'}
+              className="w-7 h-7 rounded-full bg-black/55 backdrop-blur-sm text-white flex items-center justify-center border border-white/20"
+            >
+              {muted ? <VolumeX size={13} /> : <Volume2 size={13} />}
+            </button>
+            <button
+              type="button"
+              onClick={handleFullscreen}
+              aria-label="Fullscreen"
+              className="w-7 h-7 rounded-full bg-black/55 backdrop-blur-sm text-white flex items-center justify-center border border-white/20"
+            >
+              <Maximize2 size={12} />
+            </button>
+          </div>
+        )}
+      </div>
 
       <div className="relative z-10 w-full p-4 sm:p-5 text-white">
+        {isVideo && (
+          <div className="flex items-center gap-2 mb-3">
+            <button
+              type="button"
+              onClick={togglePlay}
+              aria-label={playing ? 'Pause video' : 'Play video'}
+              className="w-7 h-7 shrink-0 rounded-full bg-black/55 backdrop-blur-sm text-white flex items-center justify-center border border-white/20"
+            >
+              {playing ? <Pause size={12} /> : <Play size={12} className="ml-0.5" />}
+            </button>
+            <div
+              ref={progressRef}
+              onClick={handleSeek}
+              role="slider"
+              tabIndex={0}
+              aria-label="Seek video"
+              aria-valuemin={0}
+              aria-valuemax={Math.round(duration) || 0}
+              aria-valuenow={Math.round(currentTime) || 0}
+              className="flex-1 h-1.5 rounded-full bg-white/25 cursor-pointer relative"
+            >
+              <div
+                className="absolute inset-y-0 left-0 rounded-full bg-white"
+                style={{ width: `${duration ? (currentTime / duration) * 100 : 0}%` }}
+              />
+            </div>
+            <span className="text-[10px] font-medium text-white/80 tabular-nums shrink-0">
+              {formatTime(currentTime)} / {formatTime(duration)}
+            </span>
+          </div>
+        )}
+
         <p className="font-bold text-[16px] leading-tight flex items-center gap-1">
           {hat.username}
           {hat.is_verified && <span className="text-[#7C9CFF]">✓</span>}
@@ -110,9 +271,9 @@ function ReelSlide({ hat, active }) {
         <div className="flex items-center gap-3 mt-3">
           <Link
             to={`/talent/${hat.id}`}
-            className="flex-1 h-10 rounded-full bg-[#0A13E6] text-white text-[13px] font-semibold border-[1.5px] border-white/20 flex items-center justify-center"
+            className="h-9 px-5 shrink-0 rounded-full bg-[#0A13E6] text-white text-[13px] font-semibold border-[1.5px] border-white/20 flex items-center justify-center"
           >
-            Book Now
+            Book
           </Link>
           <button
             type="button"
@@ -138,7 +299,18 @@ export default function Showroom() {
   const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
   const [activeIndex, setActiveIndex] = useState(0)
+  // Shared mute preference across all slides — defaults to unmuted so
+  // videos play with their original audio; the ReelSlide autoplay effect
+  // falls back to muted (and flips this) only if the browser blocks
+  // autoplay with sound.
+  const [muted, setMuted] = useState(false)
   const containerRef = useRef(null)
+  const headerRef = useRef(null)
+  const [headerOffset, setHeaderOffset] = useState(0)
+  // Height of Showroom's own fixed filter bar — measured at runtime so a
+  // spacer of the same height can reserve its space in normal flow
+  // (the bar itself is `position: fixed` and so takes up no flow space).
+  const [filterBarHeight, setFilterBarHeight] = useState(0)
 
   async function loadShowroom() {
     try {
@@ -173,6 +345,37 @@ export default function Showroom() {
       cancelled = true
     }
   }, [])
+
+  // Keep the fixed filter bar pinned just below the app's own sticky
+  // header instead of overlapping it — measured at runtime so it stays
+  // correct across breakpoints without hardcoding pixel values.
+  useEffect(() => {
+    const measure = () => {
+      const appHeader = document.querySelector('header')
+      setHeaderOffset(appHeader ? appHeader.getBoundingClientRect().height : 0)
+    }
+    measure()
+    window.addEventListener('resize', measure)
+    return () => window.removeEventListener('resize', measure)
+  }, [])
+
+  // Measure the filter bar's own height so the spacer below it can reserve
+  // exactly that much room. Uses ResizeObserver (in addition to a resize
+  // listener) so it stays correct if the row wraps to two lines on very
+  // narrow screens or the search field grows/shrinks at a breakpoint.
+  useEffect(() => {
+    const el = headerRef.current
+    if (!el) return
+    const measure = () => setFilterBarHeight(el.getBoundingClientRect().height)
+    measure()
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null
+    ro?.observe(el)
+    window.addEventListener('resize', measure)
+    return () => {
+      ro?.disconnect()
+      window.removeEventListener('resize', measure)
+    }
+  }, [headerOffset])
 
   const filtered = hats.filter((h) => {
     if (availableOnly && !h.availability) return false
@@ -217,8 +420,12 @@ export default function Showroom() {
   }, [hats, search, availableOnly])
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
+    <div className="space-y-5 relative">
+      <div
+        ref={headerRef}
+        style={{ top: headerOffset }}
+        className="sticky z-30 -mx-4 md:-mx-6 px-4 md:px-6 py-3 bg-[#F7F3EB]/95 backdrop-blur-md flex flex-col sm:flex-row sm:items-center gap-3 justify-between"
+      >
         <div>
           <h1 className="text-[22px] font-bold tracking-tight">Showroom</h1>
           <p className="text-[12px] text-black/50 font-medium mt-0.5">
@@ -226,13 +433,6 @@ export default function Showroom() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setShowAdd(true)}
-            className="h-10 px-4 rounded-full bg-[#0A13E6] text-white text-[13px] font-semibold border-[1.5px] border-black shadow-[0_4px_12px_rgba(10,19,230,0.25)] hover:bg-black transition flex items-center gap-1.5 shrink-0"
-          >
-            <Plus size={15} /> Add Spotlight
-          </button>
           <div className="relative flex-1 sm:w-64">
             <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-black/40" />
             <input
@@ -262,10 +462,29 @@ export default function Showroom() {
       ) : (
         <div className="reel-container" ref={containerRef}>
           {filtered.map((h, i) => (
-            <ReelSlide key={h.id} hat={h} active={i === activeIndex} />
+            <ReelSlide
+              key={h.id}
+              hat={h}
+              active={i === activeIndex}
+              muted={muted}
+              onSetMuted={setMuted}
+            />
           ))}
         </div>
       )}
+
+      {/* Fixed circular "Add Spotlight" action — stays reachable while
+          scrolling, tucked above the mobile bottom nav on small screens
+          and pinned to the corner on desktop. */}
+      <button
+        type="button"
+        onClick={() => setShowAdd(true)}
+        aria-label="Add Spotlight"
+        title="Add Spotlight"
+        className="fixed z-40 bottom-28 right-4 md:bottom-8 md:right-8 w-14 h-14 rounded-full bg-[#0A13E6] text-white flex items-center justify-center border-[1.5px] border-black shadow-[0_10px_30px_rgba(10,19,230,0.35)] hover:bg-black transition active:scale-95"
+      >
+        <Plus size={22} />
+      </button>
 
       <AddShowroomMedia open={showAdd} onClose={() => setShowAdd(false)} onAdded={loadShowroom} />
     </div>
