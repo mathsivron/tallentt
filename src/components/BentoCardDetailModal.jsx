@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { MapPin, Clock, X, BookOpen, Send, Lock, Unlock, AlertCircle } from 'lucide-react'
 import { api } from '../lib/api'
 
@@ -111,6 +112,20 @@ function Avatar({ src, name, className = 'w-12 h-12' }) {
   )
 }
 
+// Wraps the owner identity in the app's existing hat-detail route
+// (`/talent/:hatId` — see Showroom.jsx's identical `Link to={`/talent/${hat.id}`}`)
+// so clicking it reuses the app's existing profile-navigation mechanism
+// instead of introducing a new one. Falls back to a plain span if there's
+// no valid card id to link to.
+function OwnerLink({ cardId, className, children }) {
+  if (!cardId) return <span className={className}>{children}</span>
+  return (
+    <Link to={`/talent/${cardId}`} className={className}>
+      {children}
+    </Link>
+  )
+}
+
 function EscrowBadge({ hat, escrow }) {
   const funded = escrow?.status === 'secured' || escrow?.status === 'released'
   const fallback = hat.price_type === 'range' ? hat.price_min : hat.rate
@@ -217,9 +232,17 @@ export default function BentoCardDetailModal({ hat, escrow, showMedia = true, on
   const isTalent = (owner?.role ?? hat.role) === 'talent'
   const pillBg = isTalent ? 'bg-[#0A13E6] text-white' : 'bg-black text-white'
   const media = loaded ? detail.media?.[0] : hat.media?.[0]
-  const displayName = owner?.handle || owner?.name || hat.username
+  // Username is the app's identity — never the owner's full name (see
+  // owner.name in api/hats/[id].js, which is full-name-or-username and is
+  // intentionally not used here).
+  const displayName = owner?.handle || hat.username || null
   const avatarSrc = owner?.avatar_url || hat.owner_avatar || hat.avatar_url
   const isVerified = loaded ? Boolean(owner?.is_verified) : Boolean(hat.is_verified)
+  const category = loaded ? detail.category : hat.category
+  // Owner-level profile fields — only present once the full detail has
+  // loaded; the feed card carries no equivalent for either.
+  const ownerLocation = loaded ? owner?.location : null
+  const ownerBio = loaded ? owner?.bio_short : null
   // Card title — the primary heading for the detail view.
   const titleLine = loaded ? detail.title : hat.hat_title
   // Full description/content — no truncation and no role gate here; this
@@ -227,7 +250,6 @@ export default function BentoCardDetailModal({ hat, escrow, showMedia = true, on
   // actually has one.
   const description = loaded ? detail.description : hat.motto
   const tags = (loaded ? detail.tags : hat.skills) || []
-  const category = loaded ? detail.category : hat.category
   const hatTypeLabel = hat.hat_type || (isTalent ? 'Talent' : 'Client')
   const currency = (loaded ? detail.budget?.currency : hat.currency) || 'NGN'
   // Talent's specific location — LGA/city + country, not just a bare city name.
@@ -273,18 +295,35 @@ export default function BentoCardDetailModal({ hat, escrow, showMedia = true, on
           )}
 
           <div className="p-5 md:p-6 space-y-4 min-w-0">
-            <div className="flex items-center gap-3 min-w-0">
+            {/* Owner section — visually separated from the card content
+                below via the surface background, matching the app's
+                existing muted-panel convention (used for pills, media bg). */}
+            <div className="flex items-center gap-3 min-w-0 bg-[#F5F3EF] border-[1.5px] border-black/10 rounded-2xl p-3">
               <Avatar src={avatarSrc} name={displayName} className="w-11 h-11" />
               <div className="min-w-0 flex-1">
-                <p className="text-[13px] font-semibold flex items-center gap-1 truncate">
-                  {displayName}
-                  {isVerified && <span className="text-[#0A13E6]">✓</span>}
-                </p>
-                {publishedLabel && (
-                  <p className="text-[11px] text-black/40 font-medium">Posted {publishedLabel}</p>
+                {displayName ? (
+                  <OwnerLink cardId={cardId} className="text-[13px] font-semibold flex items-center gap-1 truncate hover:underline w-fit">
+                    {displayName}
+                    {isVerified && <span className="text-[#0A13E6]">✓</span>}
+                  </OwnerLink>
+                ) : (
+                  <p className="text-[13px] font-medium text-black/40">Unknown creator</p>
+                )}
+                {category && <p className="text-[11px] text-black/50 font-medium truncate">{category}</p>}
+                {ownerLocation && (
+                  <p className="text-[11px] text-black/40 font-medium truncate flex items-center gap-1 mt-0.5">
+                    <MapPin size={10} /> {ownerLocation}
+                  </p>
+                )}
+                {ownerBio && (
+                  <p className="text-[11px] text-black/50 leading-snug mt-1 break-words">{ownerBio}</p>
                 )}
               </div>
             </div>
+
+            {publishedLabel && (
+              <p className="text-[11px] text-black/40 font-medium -mt-2">Posted {publishedLabel}</p>
+            )}
 
             {status === 'loading' && (
               <p className="text-[11px] text-black/40 font-medium">Loading full details…</p>
