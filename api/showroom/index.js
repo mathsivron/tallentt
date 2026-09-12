@@ -29,11 +29,17 @@ export default async function handler(req, res) {
     }
     let likedSet = new Set()
     if (session?.sub && ids.length) {
-      const { rows: likeRows } = await query(
-        `SELECT hat_id FROM hat_likes WHERE user_id = $1 AND hat_id = ANY($2::uuid[])`,
-        [session.sub, ids],
-      )
-      likedSet = new Set(likeRows.map((r) => r.hat_id))
+      try {
+        const { rows: likeRows } = await query(
+          `SELECT hat_id FROM hat_likes WHERE user_id = $1 AND hat_id = ANY($2::uuid[])`,
+          [session.sub, ids],
+        )
+        likedSet = new Set(likeRows.map((r) => r.hat_id))
+      } catch (likeErr) {
+        // hat_likes may not exist yet if db/patch-views-likes.sql hasn't
+        // been run — don't let that take the whole listing down.
+        console.error('liked_by_me lookup failed (has patch-views-likes.sql been run?):', likeErr)
+      }
     }
     const curated = hats.map((h, i) => ({
       ...h,
