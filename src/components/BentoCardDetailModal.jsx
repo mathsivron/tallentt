@@ -2,37 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { MapPin, Clock, X, BookOpen, Send, Lock, Unlock, AlertCircle, Play, ImageOff, Heart, Eye } from 'lucide-react'
 import { api } from '../lib/api'
-
-const fmtMoney = (n, currency = 'NGN') => {
-  if (n == null) return '—'
-  try {
-    return new Intl.NumberFormat('en-NG', {
-      style: 'currency',
-      currency,
-      maximumFractionDigits: 0,
-    }).format(n)
-  } catch {
-    return `₦${Number(n).toLocaleString()}`
-  }
-}
-
-// Mirrors api/_lib/hatFields.js's formatPrice — fixed (rate + unit) vs
-// range (min–max, optionally negotiable). Used for the feed's partial
-// hat shape (price_type/rate/rate_unit/...).
-function formatPrice(hat, currency) {
-  if (hat.price_type === 'range' && hat.price_min != null) {
-    const base =
-      hat.price_max != null && hat.price_max !== hat.price_min
-        ? `${fmtMoney(hat.price_min, currency)} – ${fmtMoney(hat.price_max, currency)}`
-        : fmtMoney(hat.price_min, currency)
-    return hat.price_negotiable ? `${base} · negotiable` : base
-  }
-  if (hat.rate != null) {
-    const unit = hat.rate_unit === 'custom' ? hat.rate_unit_custom : hat.rate_unit ? `/${hat.rate_unit}` : ''
-    return `${fmtMoney(hat.rate, currency)}${unit ? ` ${unit}` : ''}`
-  }
-  return '—'
-}
+import { Avatar, fmtMoney, formatAvailabilityWindow, formatPrice } from './bentoCardShared'
 
 // Same pricing logic, adapted for the normalized `budget` object the
 // detail API returns (api/hats/[id].js buildCardDetail): { type, currency,
@@ -57,25 +27,6 @@ function formatBudget(budget) {
   return '—'
 }
 
-// "15:00:00" (DB TIME) or "15:00" (HTML time input) -> "3:00 PM"
-function formatTime(t) {
-  if (!t) return ''
-  const [hStr, mStr] = String(t).split(':')
-  let h = Number(hStr)
-  const m = Number(mStr || 0)
-  const suffix = h >= 12 ? 'PM' : 'AM'
-  h = h % 12 || 12
-  return `${h}:${String(m).padStart(2, '0')} ${suffix}`
-}
-
-function formatAvailabilityWindow(hat) {
-  if (!hat.available_from && !hat.available_to) return ''
-  if (hat.available_from && hat.available_to) {
-    return `${formatTime(hat.available_from)} – ${formatTime(hat.available_to)}`
-  }
-  return formatTime(hat.available_from || hat.available_to)
-}
-
 // Publication date, shared by the feed's `created_at` and the detail
 // API's `created_at` — same underlying column either way.
 function formatDate(dateStr) {
@@ -83,33 +34,6 @@ function formatDate(dateStr) {
   const d = new Date(dateStr)
   if (Number.isNaN(d.getTime())) return ''
   return new Intl.DateTimeFormat('en-NG', { day: 'numeric', month: 'short', year: 'numeric' }).format(d)
-}
-
-function Avatar({ src, name, className = 'w-12 h-12' }) {
-  const [err, setErr] = useState(false)
-  const initials = (name || '?')
-    .trim()
-    .split(/\s+/)
-    .map((w) => w[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase()
-
-  if (!src || err) {
-    return (
-      <div className={`${className} rounded-full bg-black text-white flex items-center justify-center font-bold text-[12px] border-[1.5px] border-black shrink-0`}>
-        {initials}
-      </div>
-    )
-  }
-  return (
-    <img
-      src={src}
-      alt={name}
-      className={`${className} rounded-full object-cover border-[1.5px] border-black shrink-0`}
-      onError={() => setErr(true)}
-    />
-  )
 }
 
 // Wraps the owner identity (avatar and/or username) in the app's existing
@@ -173,18 +97,37 @@ function EscrowBadge({ hat, escrow }) {
 // list — otherwise the feed card behind the modal would show stale
 // counts once the modal closes, with no full refetch required.
 export default function BentoCardDetailModal({ hat, escrow, showMedia = true, onClose, onBook, onApply, onHatChange }) {
+  // Focus the close button on open (so keyboard users land somewhere
+  // useful inside the dialog immediately) and restore focus to whatever
+  // triggered the modal once it closes, in addition to the existing
+  // scroll-lock/restore behavior.
+  const closeButtonRef = useRef(null)
   useEffect(() => {
     const scrollY = window.scrollY
+    const previouslyFocused = document.activeElement
     document.documentElement.classList.add('modal-open')
     document.body.classList.add('modal-open')
     document.body.style.top = `-${scrollY}px`
+    closeButtonRef.current?.focus()
     return () => {
       document.documentElement.classList.remove('modal-open')
       document.body.classList.remove('modal-open')
       document.body.style.top = ''
       window.scrollTo(0, scrollY)
+      if (previouslyFocused instanceof HTMLElement) previouslyFocused.focus()
     }
   }, [])
+
+  // Escape closes the modal, same as clicking the overlay or the close
+  // button. Bound/unbound per mount, so repeated open/close cycles never
+  // stack up duplicate listeners.
+  useEffect(() => {
+    function onKeyDown(e) {
+      if (e.key === 'Escape') onClose?.()
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [onClose])
 
   const cardId = hat?.id ?? null
 
@@ -247,7 +190,7 @@ export default function BentoCardDetailModal({ hat, escrow, showMedia = true, on
     try {
       await api.toggleLike(cardId)
       onHatChange?.({ id: cardId, liked_by_me: next, likes: nextCount })
-    } catch (e) {
+    } catch {
       // Restore the previous state — never leave the UI showing a like
       // the server rejected (e.g. session expired, so the PATCH 401s).
       setLiked(!next)
@@ -354,6 +297,7 @@ export default function BentoCardDetailModal({ hat, escrow, showMedia = true, on
       className="modal-overlay md:p-4"
       role="dialog"
       aria-modal="true"
+      aria-label={titleLine || 'Card details'}
       onClick={onClose}
     >
       <div
@@ -361,6 +305,7 @@ export default function BentoCardDetailModal({ hat, escrow, showMedia = true, on
         onClick={(e) => e.stopPropagation()}
       >
         <button
+          ref={closeButtonRef}
           type="button"
           className="modal-close absolute top-3 right-3 z-10 w-9 h-9 rounded-full bg-[#F5F3EF] border-[1.5px] border-black flex items-center justify-center hover:bg-black hover:text-white transition"
           onClick={onClose}
@@ -401,8 +346,8 @@ export default function BentoCardDetailModal({ hat, escrow, showMedia = true, on
 
               {mediaItems.length > 1 && (
                 <div
-                  role="tablist"
-                  aria-label="Portfolio media"
+                  role="group"
+                  aria-label="Portfolio media thumbnails"
                   className="flex gap-1.5 p-2 overflow-x-auto shrink-0 border-t-[1.5px] border-black/10 bg-white/60"
                 >
                   {mediaItems.map((m, idx) => {
@@ -412,8 +357,7 @@ export default function BentoCardDetailModal({ hat, escrow, showMedia = true, on
                       <button
                         key={`${m.url}-${idx}`}
                         type="button"
-                        role="tab"
-                        aria-selected={selected}
+                        aria-pressed={selected}
                         aria-label={`View ${m.type === 'video' ? 'video' : 'photo'} ${idx + 1} of ${mediaItems.length}`}
                         onClick={() => setActiveMediaIndex(idx)}
                         className={`relative shrink-0 w-14 h-14 rounded-lg overflow-hidden border-[1.5px] transition ${
